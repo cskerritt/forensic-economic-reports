@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+
+{% block title %}{{ evaluee.first_name }} {{ evaluee.last_name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>{{ evaluee.first_name }} {{ evaluee.last_name }}</h1>
+            <div>
+                <a href="{{ url_for('evaluee.wizard', evaluee_id=evaluee.id) }}" class="btn btn-success">
+                    <i class="fas fa-magic"></i> Wizard
+                </a>
+                <a href="{{ url_for('evaluee.edit', evaluee_id=evaluee.id) }}" class="btn btn-primary">
+                    <i class="fas fa-pencil-alt"></i> Edit
+                </a>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                    <i class="fas fa-trash-alt"></i> Delete
+                </button>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Basic Information -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Basic Information</h5>
+                        <dl class="row">
+                            <dt class="col-sm-4">State</dt>
+                            <dd class="col-sm-8">{{ evaluee.state }}</dd>
+
+                            <dt class="col-sm-4">Discounting</dt>
+                            <dd class="col-sm-8">
+                                {% if evaluee.uses_discounting %}
+                                <span class="badge bg-success">Yes</span>
+                                <small class="text-muted">{{ evaluee.discount_rates|join(', ') }}%</small>
+                                {% else %}
+                                <span class="badge bg-secondary">No</span>
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-4">Created</dt>
+                            <dd class="col-sm-8">{{ evaluee.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Demographics -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">Demographics</h5>
+                            <a href="{{ url_for('demographics.form', evaluee_id=evaluee.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                        </div>
+                        <dl class="row">
+                            <dt class="col-sm-6">Date of Birth</dt>
+                            <dd class="col-sm-6">{{ evaluee.date_of_birth.strftime('%Y-%m-%d') if evaluee.date_of_birth else 'Not set' }}</dd>
+
+                            <dt class="col-sm-6">Date of Injury</dt>
+                            <dd class="col-sm-6">
+                                {{ evaluee.date_of_injury.strftime('%m/%d/%Y') if evaluee.date_of_injury else 'Not set' }}
+                            </dd>
+
+                            <dt class="col-sm-6">Gender</dt>
+                            <dd class="col-sm-6">
+                                {{ evaluee.gender if evaluee.gender else 'Not set' }}
+                            </dd>
+
+                            <dt class="col-sm-6">Education Level</dt>
+                            <dd class="col-sm-6">
+                                {{ evaluee.education_level if evaluee.education_level else 'Not set' }}
+                            </dd>
+
+                            {% if age_today_decimal is not none %}
+                            <dt class="col-sm-6">Current Age</dt>
+                            <dd class="col-sm-6">{{ "%.3f"|format(age_today_decimal) }} years</dd>
+                            {% endif %}
+
+                            {% if age_at_injury_decimal is not none %}
+                            <dt class="col-sm-6">Age at Injury</dt>
+                            <dd class="col-sm-6">{{ "%.3f"|format(age_at_injury_decimal) }} years</dd>
+                            {% endif %}
+
+                            <dt class="col-sm-6">Life Expectancy</dt>
+                            <dd class="col-sm-6">
+                                {{ evaluee.life_expectancy|string + ' years' if evaluee.life_expectancy else 'Not set' }}
+                                {% if evaluee.life_expectancy and evaluee.date_of_injury %}
+                                <br><small class="text-muted">Until {{ (evaluee.date_of_injury + timedelta(days=evaluee.life_expectancy|float * 365.25)).strftime('%m/%d/%Y') }}</small>
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-6">Work Life Expectancy</dt>
+                            <dd class="col-sm-6">
+                                {% if evaluee.work_life_expectancy %}
+                                <strong>{{ "%.2f"|format(evaluee.work_life_expectancy) }} years</strong>
+                                {% if evaluee.date_of_injury %}
+                                <br><small class="text-muted">Until {{ (evaluee.date_of_injury + timedelta(days=evaluee.work_life_expectancy|float * 365.25)).strftime('%m/%d/%Y') }}</small>
+                                {% endif %}
+                                {% else %}
+                                <span class="text-danger">Not set</span>
+                                <br><small class="text-muted">Use "Demographics" to set this value</small>
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-6">Years to Final Separation</dt>
+                            <dd class="col-sm-6">
+                                {% if evaluee.years_to_final_separation %}
+                                <strong>{{ "%.2f"|format(evaluee.years_to_final_separation) }} years</strong>
+                                {% if evaluee.date_of_injury %}
+                                <br><small class="text-muted">Until {{ (evaluee.date_of_injury + timedelta(days=evaluee.years_to_final_separation|float * 365.25)).strftime('%m/%d/%Y') }}</small>
+                                {% endif %}
+                                {% else %}
+                                <span class="text-danger">Not set</span>
+                                <br><small class="text-muted">Use "Demographics" to set this value</small>
+                                {% endif %}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Age Information -->
+            {% if evaluee.date_of_birth %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Age Information</h5>
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Metric</th>
+                                        <th>Years</th>
+                                        <th>Years-Months-Days</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if age_today_decimal is not none %}
+                                    <tr>
+                                        <td><strong>Current Age</strong></td>
+                                        <td>{{ "%.3f"|format(age_today_decimal) }}</td>
+                                        <td>
+                                            {% set years = age_today_decimal|int %}
+                                            {% set months = ((age_today_decimal - years) * 12)|int %}
+                                            {% set days = ((((age_today_decimal - years) * 12) - months) * 30.44)|int %}
+                                            {{ years }} years, {{ months }} months, {{ days }} days
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+
+                                    {% if age_at_injury_decimal is not none %}
+                                    <tr>
+                                        <td><strong>Age at Injury</strong></td>
+                                        <td>{{ "%.3f"|format(age_at_injury_decimal) }}</td>
+                                        <td>
+                                            {% set years = age_at_injury_decimal|int %}
+                                            {% set months = ((age_at_injury_decimal - years) * 12)|int %}
+                                            {% set days = ((((age_at_injury_decimal - years) * 12) - months) * 30.44)|int %}
+                                            {{ years }} years, {{ months }} months, {{ days }} days
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {% if evaluee.date_of_birth and evaluee.date_of_injury %}
+                        <div class="mt-3">
+                            <h6>Time Since Injury</h6>
+                            {% set days_since_injury = ((datetime.now() - evaluee.date_of_injury).total_seconds() / 86400)|int %}
+                            {% set years_since_injury = days_since_injury / 365.25 %}
+                            {% set years = years_since_injury|int %}
+                            {% set months = ((years_since_injury - years) * 12)|int %}
+                            {% set days = ((((years_since_injury - years) * 12) - months) * 30.44)|int %}
+                            <p>{{ "%.3f"|format(years_since_injury) }} years ({{ years }} years, {{ months }} months, {{ days }} days)</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Worklife Factor -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">Worklife Factor</h5>
+                            <a href="{{ url_for('worklife.form', evaluee_id=evaluee.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                        </div>
+                        {% if evaluee.worklife_factor %}
+                        <p class="display-4 text-center">{{ "%.2f%%"|format(evaluee.worklife_factor * 100) }}</p>
+                        <div class="text-center">
+                            <p class="mb-1">
+                                <strong>WLE:</strong> {{ "%.2f"|format(evaluee.work_life_expectancy) }} years
+                                <span class="mx-2">|</span>
+                                <strong>YFS:</strong> {{ "%.2f"|format(evaluee.years_to_final_separation) }} years
+                            </p>
+                            {% if evaluee.worklife_manual_override %}
+                            <p class="mb-0">
+                                <span class="badge bg-warning">Manual Override</span>
+                            </p>
+                            {% else %}
+                            <p class="mb-0">
+                                <span class="badge bg-info">Table Values</span>
+                            </p>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <p class="text-center text-muted">Not calculated yet</p>
+                        <div class="text-center">
+                            <a href="{{ url_for('demographics.form', evaluee_id=evaluee.id) }}" class="btn btn-sm btn-outline-primary">
+                                Set Demographics First
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- AEF -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">Annual Earnings Factor</h5>
+                            <a href="{{ url_for('aef.form', evaluee_id=evaluee.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                        </div>
+                        <dl class="row">
+                            <dt class="col-sm-3">Gross Earnings Base</dt>
+                            <dd class="col-sm-9">{{ "%.2f%%"|format(evaluee.gross_earnings_base * 100) if evaluee.gross_earnings_base is not none else 'Not set' }}</dd>
+
+                            <dt class="col-sm-3">Worklife Adjustment</dt>
+                            <dd class="col-sm-9">{{ "%.2f%%"|format(evaluee.worklife_adjustment * 100) if evaluee.worklife_adjustment is not none else 'Not set' }}</dd>
+
+                            <dt class="col-sm-3">Unemployment Factor</dt>
+                            <dd class="col-sm-9">{{ "%.2f%%"|format(evaluee.unemployment_factor * 100) if evaluee.unemployment_factor is not none else 'Not set' }}</dd>
+
+                            <dt class="col-sm-3">Fringe Benefit</dt>
+                            <dd class="col-sm-9">{{ "%.2f%%"|format(evaluee.fringe_benefit * 100) if evaluee.fringe_benefit is not none else 'Not set' }}</dd>
+
+                            <dt class="col-sm-3">Tax Liability</dt>
+                            <dd class="col-sm-9">{{ "%.2f%%"|format(evaluee.tax_liability * 100) if evaluee.tax_liability is not none else 'Not set' }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Earnings Scenarios -->
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">Earnings Scenarios</h5>
+                            <a href="{{ url_for('earnings.form', evaluee_id=evaluee.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-plus-lg"></i> Add Scenario
+                            </a>
+                        </div>
+                        {% if evaluee.earnings_scenarios %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Period</th>
+                                        <th>Base Wage</th>
+                                        <th>Present Value</th>
+                                        <th>Total Loss</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for scenario in evaluee.earnings_scenarios %}
+                                    <tr>
+                                        <td>{{ scenario.scenario_name }}</td>
+                                        <td>{{ scenario.start_date.strftime('%Y-%m-%d') }} to {{ scenario.end_date.strftime('%Y-%m-%d') }}</td>
+                                        <td>{{ "${:,.2f}".format(scenario.wage_base) }}</td>
+                                        <td>{{ "${:,.2f}".format(scenario.present_value) if scenario.present_value else 'N/A' }}</td>
+                                        <td>{{ "${:,.2f}".format(scenario.total_loss) if scenario.total_loss else 'N/A' }}</td>
+                                        <td>
+                                            <div class="btn-group">
+                                                <a href="{{ url_for('earnings.view_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}"
+                                                   class="btn btn-sm btn-outline-primary">View</a>
+                                                <form method="POST" action="{{ url_for('earnings.delete_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}"
+                                                      style="display: inline;">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                            onclick="return confirm('Are you sure you want to delete this scenario?')">Delete</button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-center text-muted">No earnings scenarios created yet</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Medical Cost Projection removed -->
+
+            <!-- Household Services -->
+            <div class="col-md-12 mt-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Household Services</h4>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">No household services scenarios created yet.</p>
+
+                        <div class="mt-3">
+                            <a href="{{ url_for('household.household_form', evaluee_id=evaluee.id) }}"
+                               class="btn btn-primary">Manage Household Services</a>
+                            <a href="{{ url_for('reports.combined_report', evaluee_id=evaluee.id) }}"
+                               class="btn btn-success ms-2">
+                                <i class="fas fa-file-alt"></i> Combined Report
+                            </a>
+                            <a href="/reports/{{ evaluee.id }}/word-document?type=comprehensive" class="btn btn-info ms-2">
+                                <i class="fas fa-file-word"></i> Word Report
+                            </a>
+                            <div class="btn-group ms-2" role="group">
+                                <button type="button" class="btn btn-danger dropdown-toggle" data-bs-toggle="dropdown">
+                                    <i class="fas fa-file-pdf"></i> PDF Reports
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{{ url_for('reports.generate_pdf_report', evaluee_id=evaluee.id) }}">
+                                        <i class="fas fa-file-pdf"></i> Comprehensive PDF Report
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('reports.executive_summary_report', evaluee_id=evaluee.id) }}">
+                                        <i class="fas fa-file-pdf"></i> Executive Summary
+                                    </a></li>
+                                    {% if evaluee.earnings_scenarios|length > 1 %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('reports.scenario_comparison_report', evaluee_id=evaluee.id) }}?scenarios={% for scenario in evaluee.earnings_scenarios %}{{ scenario.id }}{% if not loop.last %},{% endif %}{% endfor %}">
+                                        <i class="fas fa-balance-scale"></i> Compare All Scenarios
+                                    </a></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete {{ evaluee.first_name }} {{ evaluee.last_name }}?
+                This action cannot be undone and will delete all associated data.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('evaluee.delete', evaluee_id=evaluee.id) }}" method="POST">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+{% endblock %}

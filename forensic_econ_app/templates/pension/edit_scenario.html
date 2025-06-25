@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ scenario.scenario_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Edit Pension Scenario</h2>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('pension.edit_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}">
+                        <div class="mb-3">
+                            <label for="scenario_name" class="form-label">Scenario Name</label>
+                            <input type="text" class="form-control" id="scenario_name" name="scenario_name" value="{{ scenario.scenario_name }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="calculation_method" class="form-label">Calculation Method</label>
+                            <select class="form-select" id="calculation_method" name="calculation_method" required>
+                                <option value="contributions" {% if scenario.calculation_method == 'contributions' %}selected{% endif %}>Lost Contributions</option>
+                                <option value="payments" {% if scenario.calculation_method == 'payments' %}selected{% endif %}>Lost Pension Payments</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="growth_rate" class="form-label">Growth Rate (%)</label>
+                            <input type="number" class="form-control" id="growth_rate" name="growth_rate" value="{{ (scenario.growth_rate * 100)|round(3) }}" step="0.001" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="discount_rate" class="form-label">Discount Rate (%)</label>
+                            <input type="number" class="form-control" id="discount_rate" name="discount_rate" value="{{ (scenario.discount_rate * 100)|round(3) }}" step="0.001" required>
+                        </div>
+                        
+                        <!-- Advanced Options Section -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0">Advanced Options</h6>
+                            </div>
+                            <div class="card-body">
+                                <ul class="nav nav-tabs" id="advancedTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="pension-type-tab" data-bs-toggle="tab" data-bs-target="#pension-type" type="button" role="tab" aria-controls="pension-type" aria-selected="true">Pension Type</button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="social-security-tab" data-bs-toggle="tab" data-bs-target="#social-security" type="button" role="tab" aria-controls="social-security" aria-selected="false">Social Security</button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="early-retirement-tab" data-bs-toggle="tab" data-bs-target="#early-retirement" type="button" role="tab" aria-controls="early-retirement" aria-selected="false">Early Retirement</button>
+                                    </li>
+                                </ul>
+                                
+                                <div class="tab-content p-3" id="advancedTabsContent">
+                                    <!-- Pension Type Tab -->
+                                    <div class="tab-pane fade show active" id="pension-type" role="tabpanel" aria-labelledby="pension-type-tab">
+                                        <div class="mb-3">
+                                            <label for="pension_type" class="form-label">Pension Type</label>
+                                            <select class="form-select" id="pension_type" name="pension_type">
+                                                <option value="defined_benefit" {% if scenario.pension_type == 'defined_benefit' %}selected{% endif %}>Defined Benefit</option>
+                                                <option value="defined_contribution" {% if scenario.pension_type == 'defined_contribution' %}selected{% endif %}>Defined Contribution</option>
+                                                <option value="hybrid" {% if scenario.pension_type == 'hybrid' %}selected{% endif %}>Hybrid</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div id="dc_options" class="{% if scenario.pension_type not in ['defined_contribution', 'hybrid'] %}d-none{% endif %}">
+                                            <div class="mb-3">
+                                                <label for="employer_match_percentage" class="form-label">Employer Match (%)</label>
+                                                <input type="number" class="form-control" id="employer_match_percentage" name="employer_match_percentage" value="{{ scenario.employer_match_percentage|default('0') }}" step="0.001" min="0">
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label for="vesting_period" class="form-label">Vesting Period (years)</label>
+                                                <input type="number" class="form-control" id="vesting_period" name="vesting_period" value="{{ scenario.vesting_period|default('0') }}" step="1" min="0">
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label for="vesting_percentage" class="form-label">Vesting Percentage (%)</label>
+                                                <input type="number" class="form-control" id="vesting_percentage" name="vesting_percentage" value="{{ scenario.vesting_percentage|default('100') }}" step="0.001" min="0" max="100">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Social Security Tab -->
+                                    <div class="tab-pane fade" id="social-security" role="tabpanel" aria-labelledby="social-security-tab">
+                                        <div class="mb-3 form-check">
+                                            <input type="checkbox" class="form-check-input" id="include_social_security" name="include_social_security" {% if scenario.include_social_security %}checked{% endif %}>
+                                            <label class="form-check-label" for="include_social_security">Include Social Security Benefits</label>
+                                        </div>
+                                        
+                                        <div id="ss_options" class="{% if not scenario.include_social_security %}d-none{% endif %}">
+                                            <div class="mb-3">
+                                                <label for="social_security_start_age" class="form-label">Start Age</label>
+                                                <input type="number" class="form-control" id="social_security_start_age" name="social_security_start_age" value="{{ scenario.social_security_start_age|default('67') }}" step="1" min="62" max="70">
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label for="social_security_benefit" class="form-label">Annual Benefit ($)</label>
+                                                <input type="number" class="form-control" id="social_security_benefit" name="social_security_benefit" value="{{ scenario.social_security_benefit|default('0') }}" step="100" min="0">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Early Retirement Tab -->
+                                    <div class="tab-pane fade" id="early-retirement" role="tabpanel" aria-labelledby="early-retirement-tab">
+                                        <div class="mb-3">
+                                            <label for="early_retirement_age" class="form-label">Early Retirement Age</label>
+                                            <input type="number" class="form-control" id="early_retirement_age" name="early_retirement_age" value="{{ scenario.early_retirement_age|default('') }}" step="1" min="55">
+                                            <small class="form-text text-muted">Leave blank if not applicable</small>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="early_retirement_penalty" class="form-label">Annual Penalty (%)</label>
+                                            <input type="number" class="form-control" id="early_retirement_penalty" name="early_retirement_penalty" value="{{ (scenario.early_retirement_penalty * 100)|default('0')|round(3) }}" step="0.001" min="0" max="100">
+                                            <small class="form-text text-muted">Percentage reduction in benefits per year of early retirement</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Calculation Method Specific Fields -->
+                        <div id="contributions_fields" class="{% if scenario.calculation_method != 'contributions' %}d-none{% endif %}">
+                            <div class="mb-3">
+                                <label for="years_to_retirement" class="form-label">Years to Retirement</label>
+                                <input type="number" class="form-control" id="years_to_retirement" name="years_to_retirement" value="{{ scenario.years_to_retirement|default('') }}" step="1" min="1">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="annual_contribution" class="form-label">Annual Contribution ($)</label>
+                                <input type="number" class="form-control" id="annual_contribution" name="annual_contribution" value="{{ scenario.annual_contribution|default('') }}" step="100" min="0">
+                            </div>
+                        </div>
+                        
+                        <div id="payments_fields" class="{% if scenario.calculation_method != 'payments' %}d-none{% endif %}">
+                            <div class="mb-3">
+                                <label for="retirement_age" class="form-label">Retirement Age</label>
+                                <input type="number" class="form-control" id="retirement_age" name="retirement_age" value="{{ scenario.retirement_age|default('') }}" step="1" min="55">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="life_expectancy" class="form-label">Life Expectancy</label>
+                                <input type="number" class="form-control" id="life_expectancy" name="life_expectancy" value="{{ scenario.life_expectancy|default('') }}" step="1" min="55">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="annual_pension_benefit" class="form-label">Annual Pension Benefit ($)</label>
+                                <input type="number" class="form-control" id="annual_pension_benefit" name="annual_pension_benefit" value="{{ scenario.annual_pension_benefit|default('') }}" step="100" min="0">
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('pension.view_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" class="btn btn-secondary me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Toggle calculation method fields
+    document.getElementById('calculation_method').addEventListener('change', function() {
+        const method = this.value;
+        if (method === 'contributions') {
+            document.getElementById('contributions_fields').classList.remove('d-none');
+            document.getElementById('payments_fields').classList.add('d-none');
+        } else {
+            document.getElementById('contributions_fields').classList.add('d-none');
+            document.getElementById('payments_fields').classList.remove('d-none');
+        }
+    });
+    
+    // Toggle defined contribution options
+    document.getElementById('pension_type').addEventListener('change', function() {
+        const type = this.value;
+        if (type === 'defined_contribution' || type === 'hybrid') {
+            document.getElementById('dc_options').classList.remove('d-none');
+        } else {
+            document.getElementById('dc_options').classList.add('d-none');
+        }
+    });
+    
+    // Toggle social security options
+    document.getElementById('include_social_security').addEventListener('change', function() {
+        if (this.checked) {
+            document.getElementById('ss_options').classList.remove('d-none');
+        } else {
+            document.getElementById('ss_options').classList.add('d-none');
+        }
+    });
+</script>
+{% endblock %} 

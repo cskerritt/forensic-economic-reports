@@ -1,0 +1,539 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Household Services Scenarios{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/household_services.css') }}">
+<style>
+    .comparison-table th, .comparison-table td {
+        text-align: center;
+    }
+    .comparison-table th:first-child, .comparison-table td:first-child {
+        text-align: left;
+    }
+    .comparison-highlight {
+        background-color: rgba(46, 204, 113, 0.1);
+        font-weight: bold;
+    }
+    .comparison-chart-container {
+        height: 400px;
+        margin-bottom: 30px;
+    }
+    .scenario-column {
+        border-left: 1px solid #dee2e6;
+    }
+    .parameter-row {
+        border-bottom: 1px solid #f0f0f0;
+        padding: 8px 0;
+    }
+    .parameter-label {
+        font-weight: bold;
+        color: #495057;
+    }
+    .difference-positive {
+        color: #2ecc71;
+    }
+    .difference-negative {
+        color: #e74c3c;
+    }
+    .print-only {
+        display: none;
+    }
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        .print-only {
+            display: block !important;
+        }
+        .container {
+            width: 100%;
+            max-width: 100%;
+        }
+        .household-card {
+            box-shadow: none;
+            border: 1px solid #ddd;
+        }
+        .comparison-chart-container {
+            height: 300px;
+            page-break-inside: avoid;
+        }
+        .page-break {
+            page-break-after: always;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Compare Household Services Scenarios <small class="text-muted">{{ evaluee.first_name }} {{ evaluee.last_name }}</small></h2>
+        <div class="btn-group no-print">
+            <a href="{{ url_for('household.household_form', evaluee_id=evaluee.id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Scenarios
+            </a>
+            <button onclick="window.print();" class="btn btn-outline-primary">
+                <i class="fas fa-print"></i> Print Comparison
+            </button>
+        </div>
+    </div>
+    
+    <!-- Print Header (only visible when printing) -->
+    <div class="print-only mb-4">
+        <h2 class="text-center">Household Services Scenario Comparison</h2>
+        <h3 class="text-center text-muted">{{ evaluee.first_name }} {{ evaluee.last_name }}</h3>
+        <p class="text-center">Generated on {{ now.strftime('%B %d, %Y') }}</p>
+        <hr>
+    </div>
+
+    <!-- Scenario Selection (not shown in print) -->
+    <div class="household-card mb-4 no-print">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Select Scenarios to Compare</h4>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('household.compare_scenarios', evaluee_id=evaluee.id) }}">
+                <div class="row">
+                    <div class="col-md-5">
+                        <label for="scenario1" class="form-label">First Scenario</label>
+                        <select class="form-select" id="scenario1" name="scenario1" required>
+                            <option value="" disabled {% if not scenario1 %}selected{% endif %}>Select a scenario</option>
+                            {% for s in all_scenarios %}
+                                <option value="{{ s.id }}" {% if scenario1 and s.id == scenario1.id %}selected{% endif %}>
+                                    {{ s.scenario_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="scenario2" class="form-label">Second Scenario</label>
+                        <select class="form-select" id="scenario2" name="scenario2" required>
+                            <option value="" disabled {% if not scenario2 %}selected{% endif %}>Select a scenario</option>
+                            {% for s in all_scenarios %}
+                                <option value="{{ s.id }}" {% if scenario2 and s.id == scenario2.id %}selected{% endif %}>
+                                    {{ s.scenario_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-sync-alt"></i> Compare
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if scenario1 and scenario2 %}
+        <!-- Present Value Comparison -->
+        <div class="household-card mb-4">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>Present Value Comparison</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5>{{ scenario1.scenario_name }}</h5>
+                                <div class="present-value-amount">${{ "{:,.2f}".format(scenario1.present_value or 0) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5>Difference</h5>
+                                {% set difference = (scenario2.present_value or 0) - (scenario1.present_value or 0) %}
+                                <div class="present-value-amount {% if difference > 0 %}difference-positive{% elif difference < 0 %}difference-negative{% endif %}">
+                                    ${{ "{:,.2f}".format(difference) }}
+                                    {% if difference != 0 %}
+                                        ({{ "{:.1f}".format(difference / (scenario1.present_value or 1) * 100) }}%)
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5>{{ scenario2.scenario_name }}</h5>
+                                <div class="present-value-amount">${{ "{:,.2f}".format(scenario2.present_value or 0) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualization -->
+        <div class="household-card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Visual Comparison</h4>
+            </div>
+            <div class="card-body">
+                <div class="comparison-chart-container">
+                    <canvas id="comparison-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parameter Comparison -->
+        <div class="household-card mb-4">
+            <div class="card-header bg-info text-white">
+                <h4 class="mb-0"><i class="fas fa-sliders-h me-2"></i>Parameter Comparison</h4>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>{{ scenario1.scenario_name }}</th>
+                                <th>{{ scenario2.scenario_name }}</th>
+                                <th>Difference</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Area Wage Adjustment</td>
+                                <td>{{ "%.1f"|format(scenario1.area_wage_adjustment * 100) }}%</td>
+                                <td>{{ "%.1f"|format(scenario2.area_wage_adjustment * 100) }}%</td>
+                                <td class="{% if scenario1.area_wage_adjustment != scenario2.area_wage_adjustment %}comparison-highlight{% endif %}">
+                                    {{ "%.1f"|format((scenario2.area_wage_adjustment - scenario1.area_wage_adjustment) * 100) }}%
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Reduction Percentage</td>
+                                <td>{{ "%.1f"|format(scenario1.reduction_percentage * 100) }}%</td>
+                                <td>{{ "%.1f"|format(scenario2.reduction_percentage * 100) }}%</td>
+                                <td class="{% if scenario1.reduction_percentage != scenario2.reduction_percentage %}comparison-highlight{% endif %}">
+                                    {{ "%.1f"|format((scenario2.reduction_percentage - scenario1.reduction_percentage) * 100) }}%
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Growth Rate</td>
+                                <td>{{ "%.1f"|format(scenario1.growth_rate * 100) }}%</td>
+                                <td>{{ "%.1f"|format(scenario2.growth_rate * 100) }}%</td>
+                                <td class="{% if scenario1.growth_rate != scenario2.growth_rate %}comparison-highlight{% endif %}">
+                                    {{ "%.1f"|format((scenario2.growth_rate - scenario1.growth_rate) * 100) }}%
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Discount Rate</td>
+                                <td>{{ "%.1f"|format(scenario1.discount_rate * 100) }}%</td>
+                                <td>{{ "%.1f"|format(scenario2.discount_rate * 100) }}%</td>
+                                <td class="{% if scenario1.discount_rate != scenario2.discount_rate %}comparison-highlight{% endif %}">
+                                    {{ "%.1f"|format((scenario2.discount_rate - scenario1.discount_rate) * 100) }}%
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Total Years</td>
+                                <td>{{ scenario1.stages|sum(attribute='years') }}</td>
+                                <td>{{ scenario2.stages|sum(attribute='years') }}</td>
+                                <td class="{% if scenario1.stages|sum(attribute='years') != scenario2.stages|sum(attribute='years') %}comparison-highlight{% endif %}">
+                                    {{ scenario2.stages|sum(attribute='years') - scenario1.stages|sum(attribute='years') }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Number of Stages</td>
+                                <td>{{ scenario1.stages|length }}</td>
+                                <td>{{ scenario2.stages|length }}</td>
+                                <td class="{% if scenario1.stages|length != scenario2.stages|length %}comparison-highlight{% endif %}">
+                                    {{ scenario2.stages|length - scenario1.stages|length }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stage Comparison -->
+        <div class="household-card mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h4 class="mb-0"><i class="fas fa-stream me-2"></i>Stage Comparison</h4>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Stage</th>
+                                <th colspan="2">{{ scenario1.scenario_name }}</th>
+                                <th colspan="2">{{ scenario2.scenario_name }}</th>
+                            </tr>
+                            <tr>
+                                <th>Number</th>
+                                <th>Years</th>
+                                <th>Annual Value</th>
+                                <th>Years</th>
+                                <th>Annual Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set max_stages = [scenario1.stages|length, scenario2.stages|length]|max %}
+                            {% for i in range(1, max_stages + 1) %}
+                                {% set stage1 = scenario1.stages|selectattr('stage_number', 'eq', i)|first|default(None) %}
+                                {% set stage2 = scenario2.stages|selectattr('stage_number', 'eq', i)|first|default(None) %}
+                                <tr>
+                                    <td>{{ i }}</td>
+                                    <td>{{ stage1.years if stage1 else '-' }}</td>
+                                    <td>{{ "${:,.2f}".format(stage1.annual_value) if stage1 else '-' }}</td>
+                                    <td>{{ stage2.years if stage2 else '-' }}</td>
+                                    <td>{{ "${:,.2f}".format(stage2.annual_value) if stage2 else '-' }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Annual Value Comparison -->
+        <div class="household-card mb-4 page-break">
+            <div class="card-header bg-dark text-white">
+                <h4 class="mb-0"><i class="fas fa-table me-2"></i>Annual Value Comparison</h4>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Year</th>
+                                <th>{{ scenario1.scenario_name }}</th>
+                                <th>{{ scenario2.scenario_name }}</th>
+                                <th>Difference</th>
+                                <th>% Difference</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set total_years1 = scenario1.stages|sum(attribute='years') %}
+                            {% set total_years2 = scenario2.stages|sum(attribute='years') %}
+                            {% set max_years = [total_years1, total_years2]|max %}
+                            
+                            {% for year in range(1, max_years + 1) %}
+                                {% set value1 = get_annual_value(scenario1, year) %}
+                                {% set value2 = get_annual_value(scenario2, year) %}
+                                {% set diff = value2 - value1 %}
+                                {% set percent_diff = (diff / value1 * 100) if value1 != 0 else 0 %}
+                                
+                                <tr>
+                                    <td>{{ year }}</td>
+                                    <td>{{ "${:,.2f}".format(value1) if year <= total_years1 else '-' }}</td>
+                                    <td>{{ "${:,.2f}".format(value2) if year <= total_years2 else '-' }}</td>
+                                    <td class="{% if diff != 0 and year <= total_years1 and year <= total_years2 %}
+                                               {% if diff > 0 %}difference-positive{% else %}difference-negative{% endif %}
+                                           {% endif %}">
+                                        {{ "${:,.2f}".format(diff) if year <= total_years1 and year <= total_years2 else '-' }}
+                                    </td>
+                                    <td class="{% if diff != 0 and year <= total_years1 and year <= total_years2 %}
+                                               {% if diff > 0 %}difference-positive{% else %}difference-negative{% endif %}
+                                           {% endif %}">
+                                        {{ "{:.1f}%".format(percent_diff) if year <= total_years1 and year <= total_years2 else '-' }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Conclusion -->
+        <div class="household-card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-file-alt me-2"></i>Summary of Differences</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-light">
+                    <h5>Key Findings:</h5>
+                    <ul>
+                        {% set pv_diff = (scenario2.present_value or 0) - (scenario1.present_value or 0) %}
+                        {% set pv_percent = (pv_diff / (scenario1.present_value or 1)) * 100 %}
+                        
+                        <li>The present value of <strong>{{ scenario2.scenario_name }}</strong> is 
+                            <strong class="{% if pv_diff > 0 %}difference-positive{% elif pv_diff < 0 %}difference-negative{% endif %}">
+                                {{ "${:,.2f}".format(pv_diff) }} ({{ "{:.1f}%".format(pv_percent) }})
+                            </strong> 
+                            compared to <strong>{{ scenario1.scenario_name }}</strong>.
+                        </li>
+                        
+                        {% if scenario1.area_wage_adjustment != scenario2.area_wage_adjustment %}
+                        <li>The area wage adjustment differs by 
+                            <strong>{{ "%.1f"|format((scenario2.area_wage_adjustment - scenario1.area_wage_adjustment) * 100) }}%</strong>.
+                        </li>
+                        {% endif %}
+                        
+                        {% if scenario1.reduction_percentage != scenario2.reduction_percentage %}
+                        <li>The reduction percentage differs by 
+                            <strong>{{ "%.1f"|format((scenario2.reduction_percentage - scenario1.reduction_percentage) * 100) }}%</strong>.
+                        </li>
+                        {% endif %}
+                        
+                        {% if scenario1.growth_rate != scenario2.growth_rate %}
+                        <li>The growth rate differs by 
+                            <strong>{{ "%.1f"|format((scenario2.growth_rate - scenario1.growth_rate) * 100) }}%</strong>.
+                        </li>
+                        {% endif %}
+                        
+                        {% if scenario1.discount_rate != scenario2.discount_rate %}
+                        <li>The discount rate differs by 
+                            <strong>{{ "%.1f"|format((scenario2.discount_rate - scenario1.discount_rate) * 100) }}%</strong>.
+                        </li>
+                        {% endif %}
+                        
+                        {% set years_diff = scenario2.stages|sum(attribute='years') - scenario1.stages|sum(attribute='years') %}
+                        {% if years_diff != 0 %}
+                        <li>The total number of years differs by <strong>{{ years_diff }}</strong>.</li>
+                        {% endif %}
+                        
+                        {% set stages_diff = scenario2.stages|length - scenario1.stages|length %}
+                        {% if stages_diff != 0 %}
+                        <li>The number of stages differs by <strong>{{ stages_diff }}</strong>.</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    {% elif all_scenarios|length < 2 %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            You need at least two scenarios to make a comparison. Please create another scenario.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        {% if scenario1 and scenario2 %}
+            // Create comparison chart
+            const ctx = document.getElementById('comparison-chart');
+            if (ctx) {
+                // Prepare data
+                const scenario1Name = "{{ scenario1.scenario_name }}";
+                const scenario2Name = "{{ scenario2.scenario_name }}";
+                
+                // Get stage data
+                const scenario1Stages = [
+                    {% for stage in scenario1.stages|sort(attribute='stage_number') %}
+                        {
+                            stageNumber: {{ stage.stage_number }},
+                            years: {{ stage.years }},
+                            annualValue: {{ stage.annual_value }}
+                        },
+                    {% endfor %}
+                ];
+                
+                const scenario2Stages = [
+                    {% for stage in scenario2.stages|sort(attribute='stage_number') %}
+                        {
+                            stageNumber: {{ stage.stage_number }},
+                            years: {{ stage.years }},
+                            annualValue: {{ stage.annual_value }}
+                        },
+                    {% endfor %}
+                ];
+                
+                // Create labels for all years
+                const totalYears1 = scenario1Stages.reduce((sum, stage) => sum + stage.years, 0);
+                const totalYears2 = scenario2Stages.reduce((sum, stage) => sum + stage.years, 0);
+                const maxYears = Math.max(totalYears1, totalYears2);
+                
+                const labels = Array.from({length: maxYears}, (_, i) => `Year ${i + 1}`);
+                
+                // Calculate annual values for each scenario
+                const annualValues1 = calculateAnnualValues(scenario1Stages, {{ scenario1.growth_rate }}, maxYears);
+                const annualValues2 = calculateAnnualValues(scenario2Stages, {{ scenario2.growth_rate }}, maxYears);
+                
+                // Create the chart
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: scenario1Name,
+                                data: annualValues1,
+                                borderColor: 'rgba(52, 152, 219, 1)',
+                                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.1
+                            },
+                            {
+                                label: scenario2Name,
+                                data: annualValues2,
+                                borderColor: 'rgba(231, 76, 60, 1)',
+                                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Annual Value ($)'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Year'
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.dataset.label || '';
+                                        const value = context.raw || 0;
+                                        return `${label}: $${value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        {% endif %}
+    });
+    
+    /**
+     * Calculate annual values for each year based on stages and growth rate
+     */
+    function calculateAnnualValues(stages, growthRate, maxYears) {
+        const annualValues = Array(maxYears).fill(0);
+        let currentYear = 0;
+        
+        for (const stage of stages) {
+            for (let i = 0; i < stage.years; i++) {
+                if (currentYear < maxYears) {
+                    // Apply growth rate for each year within the stage
+                    const growthFactor = Math.pow(1 + growthRate, i);
+                    annualValues[currentYear] = stage.annualValue * growthFactor;
+                    currentYear++;
+                }
+            }
+        }
+        
+        return annualValues;
+    }
+</script>
+{% endblock %}

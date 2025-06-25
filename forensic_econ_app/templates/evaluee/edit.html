@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ evaluee.first_name }} {{ evaluee.last_name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-body">
+                <h1 class="card-title">Edit Evaluee</h1>
+                <p class="lead">Update evaluee's basic information.</p>
+                
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="first_name" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="first_name" name="first_name" 
+                               value="{{ evaluee.first_name }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="last_name" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="last_name" name="last_name" 
+                               value="{{ evaluee.last_name }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="state" class="form-label">State (Jurisdiction)</label>
+                        <input type="text" class="form-control" id="state" name="state" 
+                               value="{{ evaluee.state }}" required>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="discounting" name="discounting" 
+                               {% if evaluee.uses_discounting %}checked{% endif %}>
+                        <label class="form-check-label" for="discounting">Use Discounting</label>
+                    </div>
+                    
+                    <div id="discount_rates_group" class="mb-3" {% if not evaluee.uses_discounting %}style="display: none;"{% endif %}>
+                        <label for="discount_rates" class="form-label">Discount Rates (comma-separated percentages)</label>
+                        <input type="text" class="form-control" id="discount_rates" name="discount_rates" 
+                               value="{{ evaluee.discount_rates|join(',') }}" placeholder="e.g., 3,5,7">
+                        <div class="form-text">Enter discount rates as comma-separated numbers (e.g., 3,5,7)</div>
+                    </div>
+                    
+                    <!-- Pediatric Case Fields -->
+                    <hr>
+                    <h4>Pediatric Case Options</h4>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="is_pediatric_case" name="is_pediatric_case"
+                              {% if evaluee.is_pediatric_case %}checked{% endif %}>
+                        <label class="form-check-label" for="is_pediatric_case">Pediatric Case</label>
+                    </div>
+                    
+                    <div id="pediatric_options" {% if not evaluee.is_pediatric_case %}style="display: none;"{% endif %}>
+                        <h5>Educational Attainment Scenarios</h5>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="calculate_hs_diploma" name="calculate_hs_diploma" 
+                                   {% if evaluee.calculate_hs_diploma %}checked{% endif %}>
+                            <label class="form-check-label" for="calculate_hs_diploma">High School Diploma</label>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="calculate_some_college" name="calculate_some_college" 
+                                   {% if evaluee.calculate_some_college %}checked{% endif %}>
+                            <label class="form-check-label" for="calculate_some_college">Some College</label>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="calculate_associates" name="calculate_associates" 
+                                   {% if evaluee.calculate_associates %}checked{% endif %}>
+                            <label class="form-check-label" for="calculate_associates">Associate's Degree</label>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="calculate_bachelors" name="calculate_bachelors" 
+                                   {% if evaluee.calculate_bachelors %}checked{% endif %}>
+                            <label class="form-check-label" for="calculate_bachelors">Bachelor's Degree</label>
+                        </div>
+                        
+                        <h5>Parental Education</h5>
+                        <div class="mb-3">
+                            <label for="parent1_education" class="form-label">Parent 1 Education Level</label>
+                            <select class="form-select" id="parent1_education" name="parent1_education">
+                                <option value="Less than High School" {% if evaluee.parent1_education == 'Less than High School' %}selected{% endif %}>Less than High School</option>
+                                <option value="High School Diploma" {% if evaluee.parent1_education == 'High School Diploma' %}selected{% endif %}>High School Diploma</option>
+                                <option value="Some College" {% if evaluee.parent1_education == 'Some College' %}selected{% endif %}>Some College</option>
+                                <option value="Associate's Degree" {% if evaluee.parent1_education == 'Associate\'s Degree' %}selected{% endif %}>Associate's Degree</option>
+                                <option value="Bachelor's Degree" {% if evaluee.parent1_education == 'Bachelor\'s Degree' %}selected{% endif %}>Bachelor's Degree</option>
+                                <option value="Master's Degree" {% if evaluee.parent1_education == 'Master\'s Degree' %}selected{% endif %}>Master's Degree</option>
+                                <option value="Doctoral Degree" {% if evaluee.parent1_education == 'Doctoral Degree' %}selected{% endif %}>Doctoral Degree</option>
+                                <option value="Professional Degree" {% if evaluee.parent1_education == 'Professional Degree' %}selected{% endif %}>Professional Degree</option>
+                                <option value="Unknown" {% if evaluee.parent1_education == 'Unknown' %}selected{% endif %}>Unknown</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="parent2_education" class="form-label">Parent 2 Education Level</label>
+                            <select class="form-select" id="parent2_education" name="parent2_education">
+                                <option value="Less than High School" {% if evaluee.parent2_education == 'Less than High School' %}selected{% endif %}>Less than High School</option>
+                                <option value="High School Diploma" {% if evaluee.parent2_education == 'High School Diploma' %}selected{% endif %}>High School Diploma</option>
+                                <option value="Some College" {% if evaluee.parent2_education == 'Some College' %}selected{% endif %}>Some College</option>
+                                <option value="Associate's Degree" {% if evaluee.parent2_education == 'Associate\'s Degree' %}selected{% endif %}>Associate's Degree</option>
+                                <option value="Bachelor's Degree" {% if evaluee.parent2_education == 'Bachelor\'s Degree' %}selected{% endif %}>Bachelor's Degree</option>
+                                <option value="Master's Degree" {% if evaluee.parent2_education == 'Master\'s Degree' %}selected{% endif %}>Master's Degree</option>
+                                <option value="Doctoral Degree" {% if evaluee.parent2_education == 'Doctoral Degree' %}selected{% endif %}>Doctoral Degree</option>
+                                <option value="Professional Degree" {% if evaluee.parent2_education == 'Professional Degree' %}selected{% endif %}>Professional Degree</option>
+                                <option value="Unknown" {% if evaluee.parent2_education == 'Unknown' %}selected{% endif %}>Unknown</option>
+                                <option value="N/A" {% if evaluee.parent2_education == 'N/A' %}selected{% endif %}>N/A (Single Parent Household)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <a href="{{ url_for('evaluee.view', evaluee_id=evaluee.id) }}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('discounting').addEventListener('change', function() {
+    const ratesGroup = document.getElementById('discount_rates_group');
+    ratesGroup.style.display = this.checked ? 'block' : 'none';
+    if (!this.checked) {
+        document.getElementById('discount_rates').value = '0';
+    } else {
+        document.getElementById('discount_rates').value = '3,5,7';
+    }
+});
+
+document.getElementById('is_pediatric_case').addEventListener('change', function() {
+    const pediatricOptions = document.getElementById('pediatric_options');
+    pediatricOptions.style.display = this.checked ? 'block' : 'none';
+});
+</script>
+{% endblock %} 

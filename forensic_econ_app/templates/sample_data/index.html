@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}Sample Data for Testing{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>Sample Data for Testing</h1>
+                <a href="{{ url_for('evaluee.index') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Evaluees
+                </a>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <strong>Testing & Demonstration:</strong> Use these sample data sets to test the economic analysis 
+                tool's functionality, including earnings scenarios, Word document exports, and calculation methods. 
+                Each sample includes realistic economic data and multiple scenarios for comprehensive testing.
+            </div>
+            
+            <!-- Predefined Sample Data Sets -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3>Predefined Sample Cases</h3>
+                    <p class="mb-0">Choose from professionally crafted sample cases representing common economic analysis scenarios.</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for sample_key, sample_info in predefined_samples.items() %}
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100 sample-card" data-sample-type="{{ sample_key }}">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ sample_info.name }}</h5>
+                                    <p class="card-text">{{ sample_info.description }}</p>
+                                    <div class="mb-3">
+                                        <small class="text-muted">
+                                            <strong>Typical Loss Range:</strong><br>
+                                            {{ sample_info.typical_loss_range }}
+                                        </small>
+                                    </div>
+                                    <div class="btn-group w-100" role="group">
+                                        <button type="button" class="btn btn-outline-info btn-preview" 
+                                                data-sample-type="{{ sample_key }}">
+                                            <i class="fas fa-eye"></i> Preview
+                                        </button>
+                                        <a href="{{ url_for('sample_data.load_sample_data', sample_type=sample_key) }}" 
+                                           class="btn btn-primary">
+                                            <i class="fas fa-download"></i> Load Data
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Custom Sample Data -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Create Custom Sample Data</h3>
+                    <p class="mb-0">Generate custom sample data with your own parameters for specific testing scenarios.</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <p>Create a custom evaluee with specific characteristics to test particular scenarios or calculation methods. This is useful for:</p>
+                            <ul>
+                                <li>Testing specific age ranges or occupations</li>
+                                <li>Validating calculations with known parameters</li>
+                                <li>Training and demonstration purposes</li>
+                                <li>Quality assurance testing</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <a href="{{ url_for('sample_data.custom_sample_data') }}" class="btn btn-success btn-lg">
+                                <i class="fas fa-plus-circle"></i> Create Custom Sample
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewModalLabel">Sample Data Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p>Loading preview...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="#" id="loadSampleBtn" class="btn btn-primary">
+                    <i class="fas fa-download"></i> Load This Sample
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sample-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        border: 1px solid #dee2e6;
+    }
+    
+    .sample-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .btn-preview {
+        border-right: 1px solid #dee2e6;
+    }
+    
+    .modal-xl {
+        max-width: 1200px;
+    }
+    
+    .preview-section {
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .preview-table {
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Preview button functionality
+    document.querySelectorAll('.btn-preview').forEach(button => {
+        button.addEventListener('click', function() {
+            const sampleType = this.getAttribute('data-sample-type');
+            previewSampleData(sampleType);
+        });
+    });
+});
+
+function previewSampleData(sampleType) {
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    modal.show();
+    
+    // Update load button
+    document.getElementById('loadSampleBtn').href = `{{ url_for('sample_data.load_sample_data', sample_type='') }}${sampleType}`;
+    
+    // Load preview data
+    fetch(`/api/sample-data/preview/${sampleType}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayPreview(data.evaluee_data, data.scenarios);
+            } else {
+                document.getElementById('previewContent').innerHTML = 
+                    '<div class="alert alert-danger">Error loading preview: ' + data.error + '</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('previewContent').innerHTML = 
+                '<div class="alert alert-danger">Error loading preview data.</div>';
+        });
+}
+
+function displayPreview(evalueeData, scenarios) {
+    const content = `
+        <div class="preview-section">
+            <h4>Evaluee Information</h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <table class="table table-sm preview-table">
+                        <tr><td><strong>Name:</strong></td><td>${evalueeData.first_name} ${evalueeData.last_name}</td></tr>
+                        <tr><td><strong>Date of Birth:</strong></td><td>${evalueeData.date_of_birth}</td></tr>
+                        <tr><td><strong>Date of Injury:</strong></td><td>${evalueeData.date_of_injury}</td></tr>
+                        <tr><td><strong>Age at Injury:</strong></td><td>${calculateAge(evalueeData.date_of_birth, evalueeData.date_of_injury)} years</td></tr>
+                        <tr><td><strong>State:</strong></td><td>${evalueeData.state}</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <table class="table table-sm preview-table">
+                        <tr><td><strong>Occupation:</strong></td><td>${evalueeData.occupation}</td></tr>
+                        <tr><td><strong>Education:</strong></td><td>${evalueeData.education_level}</td></tr>
+                        <tr><td><strong>Base Earnings:</strong></td><td>$${evalueeData.base_earnings.toLocaleString()}</td></tr>
+                        <tr><td><strong>Work Life Expectancy:</strong></td><td>${evalueeData.work_life_expectancy} years</td></tr>
+                        <tr><td><strong>Residual Capacity:</strong></td><td>${(evalueeData.residual_capacity * 100).toFixed(0)}%</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="preview-section">
+            <h4>Earnings Scenarios (${scenarios.length} scenarios)</h4>
+            <div class="table-responsive">
+                <table class="table table-striped preview-table">
+                    <thead>
+                        <tr>
+                            <th>Scenario</th>
+                            <th>Pre-Injury Wage</th>
+                            <th>Post-Injury Wage</th>
+                            <th>Annual Loss</th>
+                            <th>Growth Rate</th>
+                            <th>Period</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${scenarios.map(scenario => `
+                            <tr>
+                                <td><strong>${scenario.scenario_name}</strong></td>
+                                <td>$${scenario.wage_base.toLocaleString()}</td>
+                                <td>$${scenario.residual_base.toLocaleString()}</td>
+                                <td>$${(scenario.wage_base - scenario.residual_base).toLocaleString()}</td>
+                                <td>${(scenario.growth_rate * 100).toFixed(1)}%</td>
+                                <td>${scenario.start_date} to ${scenario.end_date}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="preview-section">
+            <h4>What Will Be Created</h4>
+            <ul>
+                <li><strong>1 Evaluee</strong> with complete demographic and economic information</li>
+                <li><strong>${scenarios.length} Earnings Scenarios</strong> with pre/post injury analysis</li>
+                <li><strong>1 Household Services Scenario</strong> with multi-stage calculations</li>
+                <li><strong>Complete Dataset</strong> ready for Word document export and testing</li>
+            </ul>
+        </div>
+    `;
+    
+    document.getElementById('previewContent').innerHTML = content;
+}
+
+function calculateAge(birthDate, referenceDate) {
+    const birth = new Date(birthDate);
+    const reference = new Date(referenceDate);
+    const age = reference.getFullYear() - birth.getFullYear();
+    const monthDiff = reference.getMonth() - birth.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && reference.getDate() < birth.getDate())) {
+        return age - 1;
+    }
+    return age;
+}
+</script>
+{% endblock %}

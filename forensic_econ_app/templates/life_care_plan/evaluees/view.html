@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}{{ evaluee.full_name }} - Life Care Plan Evaluee{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center mb-4">
+                <h1 class="mb-2 mb-lg-0"><i class="fas fa-user me-2"></i>{{ evaluee.full_name }}</h1>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{{ url_for('life_care_plan.edit_evaluee', evaluee_id=evaluee.id) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-edit me-2"></i><span class="d-none d-sm-inline">Edit Evaluee</span><span class="d-sm-none">Edit</span>
+                    </a>
+                    <a href="{{ url_for('life_care_plan.create_plan', evaluee_id=evaluee.id) }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus me-2"></i><span class="d-none d-sm-inline">New Life Care Plan</span><span class="d-sm-none">New Plan</span>
+                    </a>
+                    <a href="{{ url_for('life_care_plan.evaluees_index') }}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-2"></i><span class="d-none d-sm-inline">Back to Evaluees</span><span class="d-sm-none">Back</span>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="row">
+                <!-- Evaluee Information -->
+                <div class="col-12 col-lg-8 order-2 order-lg-1">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Personal Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-12 col-md-6">
+                                    <table class="table table-borderless table-sm">
+                                        <tr>
+                                            <td class="fw-bold">Name:</td>
+                                            <td>{{ evaluee.full_name }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Date of Birth:</td>
+                                            <td>{{ evaluee.date_of_birth.strftime('%B %d, %Y') if evaluee.date_of_birth else 'Not specified' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Current Age:</td>
+                                            <td>{{ evaluee.current_age }} years</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Date of Injury:</td>
+                                            <td>{{ evaluee.date_of_injury.strftime('%B %d, %Y') if evaluee.date_of_injury else 'Not specified' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Age at Injury:</td>
+                                            <td>{{ evaluee.age_at_injury }} years</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Gender:</td>
+                                            <td>{{ evaluee.gender or 'Not specified' }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <table class="table table-borderless table-sm">
+                                        <tr>
+                                            <td class="fw-bold">Phone:</td>
+                                            <td>{{ evaluee.phone or 'Not specified' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Email:</td>
+                                            <td>{{ evaluee.email or 'Not specified' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Occupation:</td>
+                                            <td>{{ evaluee.occupation or 'Not specified' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Education:</td>
+                                            <td>{{ evaluee.education_level or 'Not specified' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Pre-Injury Income:</td>
+                                            <td>${{ "{:,.2f}".format(evaluee.pre_injury_income) if evaluee.pre_injury_income else 'Not specified' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Life Expectancy:</td>
+                                            <td>{{ evaluee.life_expectancy }} years</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            {% if evaluee.address or evaluee.city or evaluee.state %}
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h6 class="fw-bold">Address:</h6>
+                                    <p class="mb-0">
+                                        {% if evaluee.address %}{{ evaluee.address }}<br>{% endif %}
+                                        {% if evaluee.city or evaluee.state or evaluee.zip_code %}
+                                        {{ evaluee.city }}{% if evaluee.city and evaluee.state %}, {% endif %}{{ evaluee.state }} {{ evaluee.zip_code }}
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Medical Information</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if evaluee.primary_diagnosis %}
+                            <div class="mb-3">
+                                <h6 class="fw-bold">Primary Diagnosis:</h6>
+                                <p>{{ evaluee.primary_diagnosis }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if evaluee.secondary_diagnoses %}
+                            <div class="mb-3">
+                                <h6 class="fw-bold">Secondary Diagnoses:</h6>
+                                <p>{{ evaluee.secondary_diagnoses }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if evaluee.injury_description %}
+                            <div class="mb-3">
+                                <h6 class="fw-bold">Injury Description:</h6>
+                                <p>{{ evaluee.injury_description }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if evaluee.current_medical_status %}
+                            <div class="mb-3">
+                                <h6 class="fw-bold">Current Medical Status:</h6>
+                                <p>{{ evaluee.current_medical_status }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if evaluee.life_expectancy_source %}
+                            <div class="mb-3">
+                                <h6 class="fw-bold">Life Expectancy Source:</h6>
+                                <p>{{ evaluee.life_expectancy_source }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if not (evaluee.primary_diagnosis or evaluee.secondary_diagnoses or evaluee.injury_description or evaluee.current_medical_status) %}
+                            <p class="text-muted">No medical information recorded.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Life Care Plans -->
+                <div class="col-12 col-lg-4 order-1 order-lg-2 mb-4 mb-lg-0">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Life Care Plans</h5>
+                            <span class="badge bg-info">{{ plans|length }}</span>
+                        </div>
+                        <div class="card-body">
+                            {% if plans %}
+                            <div class="list-group list-group-flush">
+                                {% for plan in plans %}
+                                <div class="list-group-item d-flex justify-content-between align-items-start">
+                                    <div class="me-auto">
+                                        <div class="fw-bold">{{ plan.plan_name }}</div>
+                                        <small class="text-muted">
+                                            Created: {{ plan.created_at.strftime('%m/%d/%Y') }}
+                                        </small>
+                                        {% if plan.plan_description %}
+                                        <br><small>{{ plan.plan_description[:50] }}{% if plan.plan_description|length > 50 %}...{% endif %}</small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('life_care_plan.view_plan', plan_id=plan.id) }}" 
+                                           class="btn btn-outline-primary btn-sm" title="View Plan">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('life_care_plan.edit_plan', plan_id=plan.id) }}" 
+                                           class="btn btn-outline-secondary btn-sm" title="Edit Plan">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-clipboard-list fa-2x text-muted mb-3"></i>
+                                <p class="text-muted">No life care plans yet.</p>
+                                <a href="{{ url_for('life_care_plan.create_plan', evaluee_id=evaluee.id) }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus me-2"></i>Create First Plan
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Quick Stats</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <div class="border-end">
+                                        <h4 class="text-primary">{{ evaluee.current_age or 'N/A' }}</h4>
+                                        <small class="text-muted">Current Age</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <h4 class="text-success">{{ plans|length }}</h4>
+                                    <small class="text-muted">Life Care Plans</small>
+                                </div>
+                            </div>
+                            
+                            {% if evaluee.date_of_injury and evaluee.current_age and evaluee.age_at_injury %}
+                            <hr>
+                            <div class="text-center">
+                                <h4 class="text-info">{{ evaluee.current_age - evaluee.age_at_injury }}</h4>
+                                <small class="text-muted">Years Since Injury</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,391 @@
+{% extends "base.html" %}
+
+{% block title %}Household Services Report - {{ evaluee.first_name }} {{ evaluee.last_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/household_services.css') }}">
+<style>
+    @media print {
+        body {
+            font-size: 12pt;
+        }
+        .no-print {
+            display: none !important;
+        }
+        .container {
+            width: 100%;
+            max-width: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        .household-card {
+            box-shadow: none;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+        .page-break {
+            page-break-after: always;
+        }
+        .chart-container {
+            height: 300px;
+            page-break-inside: avoid;
+        }
+        table {
+            page-break-inside: avoid;
+        }
+        h2, h3, h4 {
+            page-break-after: avoid;
+        }
+        .table-responsive {
+            overflow-x: visible;
+        }
+    }
+    .report-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    .report-title {
+        font-size: 24pt;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .report-subtitle {
+        font-size: 18pt;
+        margin-bottom: 5px;
+    }
+    .report-date {
+        font-size: 12pt;
+        color: #666;
+    }
+    .section-title {
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 5px;
+        margin-bottom: 20px;
+        color: #2c3e50;
+    }
+    .summary-box {
+        border: 1px solid #ddd;
+        padding: 15px;
+        margin-bottom: 20px;
+        background-color: #f9f9f9;
+    }
+    .summary-value {
+        font-size: 24pt;
+        font-weight: bold;
+        color: #2c3e50;
+        text-align: center;
+        margin-bottom: 5px;
+    }
+    .summary-label {
+        text-align: center;
+        color: #7f8c8d;
+    }
+    .parameter-table th {
+        width: 40%;
+    }
+    .stage-timeline-print {
+        margin-left: 20px;
+        border-left: 3px solid #3498db;
+        padding-left: 20px;
+    }
+    .stage-item-print {
+        margin-bottom: 20px;
+        position: relative;
+    }
+    .stage-item-print::before {
+        content: '';
+        position: absolute;
+        left: -29px;
+        top: 0;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background-color: #3498db;
+        border: 2px solid #fff;
+    }
+    .stage-content-print {
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+    .footer {
+        text-align: center;
+        font-size: 10pt;
+        color: #7f8c8d;
+        margin-top: 30px;
+        border-top: 1px solid #ddd;
+        padding-top: 10px;
+    }
+    .page-number:after {
+        content: counter(page);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Print Controls (not printed) -->
+    <div class="no-print mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2>Household Services Report</h2>
+            <div class="btn-group">
+                <button onclick="window.print();" class="btn btn-primary">
+                    <i class="fas fa-print"></i> Print Report
+                </button>
+                <a href="{{ url_for('household.view_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Scenario
+                </a>
+            </div>
+        </div>
+        <div class="alert alert-info mt-3">
+            <i class="fas fa-info-circle me-2"></i>
+            This page is formatted for printing. Click the Print Report button above to print or save as PDF.
+        </div>
+    </div>
+    
+    <!-- Report Header -->
+    <div class="report-header">
+        <div class="report-title">Household Services Valuation Report</div>
+        <div class="report-subtitle">{{ evaluee.first_name }} {{ evaluee.last_name }}</div>
+        <div class="report-date">Generated on {{ now.strftime('%B %d, %Y') }}</div>
+    </div>
+    
+    <!-- Executive Summary -->
+    <div class="section-title">
+        <h3>Executive Summary</h3>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-6 offset-md-3">
+            <div class="summary-box">
+                <div class="summary-value">${{ "{:,.2f}".format(scenario.present_value or 0) }}</div>
+                <div class="summary-label">Present Value of Household Services</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <p>
+                This report presents the valuation of household services for <strong>{{ evaluee.first_name }} {{ evaluee.last_name }}</strong> 
+                based on the scenario "<strong>{{ scenario.scenario_name }}</strong>". The valuation uses a staged approach 
+                that accounts for changes in service values over time, adjusted for local wage rates, and discounted to present value.
+            </p>
+            <p>
+                The total present value of household services is calculated to be <strong>${{ "{:,.2f}".format(scenario.present_value or 0) }}</strong>.
+                This value represents the economic loss associated with the reduction in household services capacity.
+            </p>
+        </div>
+    </div>
+    
+    <!-- Scenario Parameters -->
+    <div class="section-title page-break">
+        <h3>Scenario Parameters</h3>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <table class="table table-bordered parameter-table">
+                <tbody>
+                    <tr>
+                        <th>Scenario Name</th>
+                        <td>{{ scenario.scenario_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Area Wage Adjustment</th>
+                        <td>{{ "%.1f"|format(scenario.area_wage_adjustment * 100) }}%</td>
+                    </tr>
+                    <tr>
+                        <th>Reduction Percentage</th>
+                        <td>{{ "%.1f"|format(scenario.reduction_percentage * 100) }}%</td>
+                    </tr>
+                    <tr>
+                        <th>Growth Rate</th>
+                        <td>{{ "%.1f"|format(scenario.growth_rate * 100) }}%</td>
+                    </tr>
+                    <tr>
+                        <th>Discount Rate</th>
+                        <td>{{ "%.1f"|format(scenario.discount_rate * 100) }}%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="col-md-6">
+            <table class="table table-bordered parameter-table">
+                <tbody>
+                    <tr>
+                        <th>Total Years</th>
+                        <td>{{ scenario.stages|sum(attribute='years') }}</td>
+                    </tr>
+                    <tr>
+                        <th>Number of Stages</th>
+                        <td>{{ scenario.stages|length }}</td>
+                    </tr>
+                    <tr>
+                        <th>Date of Injury</th>
+                        <td>{{ evaluee.date_of_injury.strftime('%B %d, %Y') if evaluee.date_of_injury else 'Not specified' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Date of Birth</th>
+                        <td>{{ evaluee.date_of_birth.strftime('%B %d, %Y') if evaluee.date_of_birth else 'Not specified' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Gender</th>
+                        <td>{{ evaluee.gender or 'Not specified' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Calculation Methodology -->
+    <div class="section-title">
+        <h3>Calculation Methodology</h3>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <p>
+                The present value of household services is calculated using the following methodology:
+            </p>
+            <ol>
+                <li>The service period is divided into stages, each with a specific annual value and duration.</li>
+                <li>For each year, the base annual value is grown at a rate of {{ "%.1f"|format(scenario.growth_rate * 100) }}% to account for inflation.</li>
+                <li>The grown value is adjusted by the area wage adjustment factor of {{ "%.1f"|format(scenario.area_wage_adjustment * 100) }}% to reflect local market conditions.</li>
+                <li>The adjusted value is reduced by {{ "%.1f"|format(scenario.reduction_percentage * 100) }}% to account for the loss of capacity.</li>
+                <li>The resulting annual values are discounted to present value using a discount rate of {{ "%.1f"|format(scenario.discount_rate * 100) }}%.</li>
+                <li>The present values for all years are summed to arrive at the total present value.</li>
+            </ol>
+        </div>
+    </div>
+    
+    <!-- Stages Timeline -->
+    <div class="section-title page-break">
+        <h3>Stages Timeline</h3>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            {% if scenario.stages %}
+                <div class="stage-timeline-print">
+                    {% for stage in scenario.stages|sort(attribute='stage_number') %}
+                        <div class="stage-item-print">
+                            <div class="stage-content-print">
+                                <h4>Stage {{ stage.stage_number }}</h4>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <strong>Duration:</strong> {{ stage.years }} years
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Annual Value:</strong> ${{ "{:,.2f}".format(stage.annual_value) }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Total Value:</strong> ${{ "{:,.2f}".format(stage.annual_value * stage.years) }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-warning">
+                    No stages have been defined for this scenario.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Annual Breakdown -->
+    <div class="section-title">
+        <h3>Annual Breakdown</h3>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            {% if scenario.stages %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>Stage</th>
+                                <th>Year</th>
+                                <th>Base Value</th>
+                                <th>Grown Value</th>
+                                <th>Adjusted Value</th>
+                                <th>Present Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set ns = namespace(total_base=Decimal('0'), total_grown=Decimal('0'), total_adjusted=Decimal('0'), total_present=Decimal('0')) %}
+                            {% for stage in scenario.stages|sort(attribute='stage_number') %}
+                                {% for local_year in range(1, stage.years + 1) %}
+                                    {% set growth_factor = (Decimal('1') + scenario.growth_rate) ** (local_year - 1) %}
+                                    {% set grown_value = stage.annual_value * growth_factor %}
+                                    {% set adjusted_value = grown_value * scenario.area_wage_adjustment * scenario.reduction_percentage %}
+                                    {% set present_value = adjusted_value / ((Decimal('1') + scenario.discount_rate) ** local_year) %}
+                                    
+                                    {% set ns.total_base = ns.total_base + stage.annual_value %}
+                                    {% set ns.total_grown = ns.total_grown + grown_value %}
+                                    {% set ns.total_adjusted = ns.total_adjusted + adjusted_value %}
+                                    {% set ns.total_present = ns.total_present + present_value %}
+                                    
+                                    <tr>
+                                        <td>{{ stage.stage_number }}</td>
+                                        <td>{{ local_year }}</td>
+                                        <td>${{ "{:,.2f}".format(stage.annual_value) }}</td>
+                                        <td>${{ "{:,.2f}".format(grown_value) }}</td>
+                                        <td>${{ "{:,.2f}".format(adjusted_value) }}</td>
+                                        <td>${{ "{:,.2f}".format(present_value) }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% endfor %}
+                            <tr class="table-info">
+                                <td colspan="2"><strong>Total</strong></td>
+                                <td><strong>${{ "{:,.2f}".format(ns.total_base) }}</strong></td>
+                                <td><strong>${{ "{:,.2f}".format(ns.total_grown) }}</strong></td>
+                                <td><strong>${{ "{:,.2f}".format(ns.total_adjusted) }}</strong></td>
+                                <td><strong>${{ "{:,.2f}".format(ns.total_present) }}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-warning">
+                    No stages have been defined for this scenario.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Conclusion -->
+    <div class="section-title page-break">
+        <h3>Conclusion</h3>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <p>
+                Based on the parameters and methodology described in this report, the present value of household services 
+                for <strong>{{ evaluee.first_name }} {{ evaluee.last_name }}</strong> is calculated to be 
+                <strong>${{ "{:,.2f}".format(scenario.present_value or 0) }}</strong>.
+            </p>
+            <p>
+                This value represents the economic loss associated with the reduction in household services capacity 
+                of {{ "%.1f"|format(scenario.reduction_percentage * 100) }}% over a period of {{ scenario.stages|sum(attribute='years') }} years, 
+                adjusted for local wage rates and discounted to present value.
+            </p>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+        <div>Household Services Valuation Report - {{ evaluee.first_name }} {{ evaluee.last_name }}</div>
+        <div>Generated on {{ now.strftime('%B %d, %Y') }} | Page <span class="page-number"></span></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- No JavaScript needed for print report -->
+{% endblock %}

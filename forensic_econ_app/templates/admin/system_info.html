@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}System Information{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1>System Information</h1>
+            <p class="lead">View system statistics and information.</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Database Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tbody>
+                            <tr>
+                                <th>Users</th>
+                                <td>{{ stats.users }}</td>
+                            </tr>
+                            <tr>
+                                <th>Evaluees</th>
+                                <td>{{ stats.evaluees }}</td>
+                            </tr>
+                            <tr>
+                                <th>Earnings Scenarios</th>
+                                <td>{{ stats.earnings_scenarios }}</td>
+                            </tr>
+                            <tr>
+                                <th>Household Services</th>
+                                <td>{{ stats.household_services }}</td>
+                            </tr>
+                            <!-- Medical Costs removed -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">System Health</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> System is running normally
+                    </div>
+
+                    <h6 class="mt-4">Connected Services</h6>
+                    <ul class="list-group">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Database
+                            <span class="badge bg-success rounded-pill">Connected</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Life Expectancy API
+                            <span class="badge bg-success rounded-pill">Connected</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Application Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Economic Analysis Application</h6>
+                            <p>Version: 1.0.0</p>
+                            <p>Environment: {{ config.ENV }}</p>
+                            <p>Debug Mode: {{ config.DEBUG }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Integrated Services</h6>
+                            <ul>
+                                <li>Life Expectancy API</li>
+                                <!-- Medical Cost Projection removed -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

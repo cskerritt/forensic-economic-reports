@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block title %}Demographics{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h1>Demographics</h1>
+                <p class="lead">Enter demographic information for the evaluee.</p>
+            </div>
+            <div>
+                <a href="{{ url_for('help.quick_start') }}" class="btn btn-outline-info" target="_blank">
+                    <i class="fas fa-question-circle"></i> Help
+                </a>
+            </div>
+        </div>
+
+        <!-- Progress Tracker -->
+        <div class="progress-tracker mb-4">
+            <div class="progress" style="height: 8px;">
+                <div class="progress-bar bg-success" role="progressbar" style="width: 20%;" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            <div class="d-flex justify-content-between mt-2">
+                <span class="progress-step active">Demographics</span>
+                <span class="progress-step">Worklife</span>
+                <span class="progress-step">Earnings</span>
+                <span class="progress-step">Healthcare</span>
+                <span class="progress-step">Reports</span>
+            </div>
+        </div>
+
+        <!-- Workflow Guide -->
+        <div class="alert alert-info mb-4">
+            <div class="d-flex">
+                <div class="me-3">
+                    <i class="fas fa-info-circle fa-2x"></i>
+                </div>
+                <div>
+                    <h5 class="alert-heading">Quick Guide</h5>
+                    <p class="mb-0">Complete all demographic information below including the manual entry of Life Expectancy, Work Life Expectancy, and Years to Final Separation values.</p>
+                </div>
+            </div>
+        </div>
+
+        <form method="POST" id="demographics-form" class="needs-validation" novalidate>
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Basic Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="date_of_birth" class="form-label">
+                                    Date of Birth <span class="text-danger">*</span>
+                                    <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" title="The evaluee's date of birth is used to calculate age-related factors."></i>
+                                </label>
+                                <input type="text" class="form-control" id="date_of_birth" name="date_of_birth" 
+                                       value="{{ evaluee.date_of_birth.strftime('%m/%d/%Y') if evaluee.date_of_birth else '' }}"
+                                       placeholder="MM/DD/YYYY" pattern="\d{2}/\d{2}/\d{4}" 
+                                       maxlength="10" required>
+                                <div class="form-text">Format: MM/DD/YYYY (e.g., 01/15/1985)</div>
+                                <div class="invalid-feedback">Please enter a valid date in MM/DD/YYYY format</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="date_of_injury" class="form-label">
+                                    Date of Injury <span class="text-danger">*</span>
+                                    <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" title="The date when the injury occurred. This is used as the starting point for calculations."></i>
+                                </label>
+                                <input type="text" class="form-control" id="date_of_injury" name="date_of_injury" 
+                                       value="{{ evaluee.date_of_injury.strftime('%m/%d/%Y') if evaluee.date_of_injury else '' }}"
+                                       placeholder="MM/DD/YYYY" pattern="\d{2}/\d{2}/\d{4}" 
+                                       maxlength="10" required>
+                                <div class="form-text">Format: MM/DD/YYYY (e.g., 03/15/2023)</div>
+                                <div class="invalid-feedback">Please enter a valid date in MM/DD/YYYY format</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="gender" class="form-label">
+                                    Gender <span class="text-danger">*</span>
+                                    <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" title="Gender is used for worklife expectancy and life expectancy calculations."></i>
+                                </label>
+                                <select class="form-select" id="gender" name="gender" required>
+                                    <option value="Men" {% if evaluee.gender == 'Men' %}selected{% endif %}>Men</option>
+                                    <option value="Women" {% if evaluee.gender == 'Women' %}selected{% endif %}>Women</option>
+                                </select>
+                                <div class="invalid-feedback">Please select a gender.</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="education_level" class="form-label">
+                                    Education Level <span class="text-danger">*</span>
+                                    <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" title="Education level affects worklife expectancy calculations."></i>
+                                </label>
+                                <select class="form-select" id="education_level" name="education_level" required>
+                                    <option value="All Education Levels" {% if evaluee.education_level == 'All Education Levels' %}selected{% endif %}>All Education Levels</option>
+                                    <option value="No Education through 9th Grade" {% if evaluee.education_level == 'No Education through 9th Grade' %}selected{% endif %}>No Education through 9th Grade</option>
+                                    <option value="10th Grade to 12th Grade, No Diploma" {% if evaluee.education_level == '10th Grade to 12th Grade, No Diploma' %}selected{% endif %}>10th Grade to 12th Grade, No Diploma</option>
+                                    <option value="GED" {% if evaluee.education_level == 'GED' %}selected{% endif %}>GED</option>
+                                    <option value="High School Graduate" {% if evaluee.education_level == 'High School Graduate' %}selected{% endif %}>High School Graduate</option>
+                                    <option value="Some College, No Degree" {% if evaluee.education_level == 'Some College, No Degree' %}selected{% endif %}>Some College, No Degree</option>
+                                    <option value="Associate's Degree" {% if evaluee.education_level == 'Associate\'s Degree' %}selected{% endif %}>Associate's Degree</option>
+                                    <option value="Bachelor's Degree" {% if evaluee.education_level == 'Bachelor\'s Degree' %}selected{% endif %}>Bachelor's Degree</option>
+                                    <option value="Master's Degree" {% if evaluee.education_level == 'Master\'s Degree' %}selected{% endif %}>Master's Degree</option>
+                                    <option value="Professional Degree" {% if evaluee.education_level == 'Professional Degree' %}selected{% endif %}>Professional Degree</option>
+                                    <option value="Doctoral Degree" {% if evaluee.education_level == 'Doctoral Degree' %}selected{% endif %}>Doctoral Degree</option>
+                                </select>
+                                <div class="invalid-feedback">Please select an education level.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if age_at_injury %}
+                    <div class="alert alert-success mt-3">
+                        <div class="d-flex">
+                            <div class="me-3">
+                                <i class="fas fa-calculator fa-2x"></i>
+                            </div>
+                            <div>
+                                <h5 class="alert-heading">Calculated Values</h5>
+                                <p class="mb-1"><strong>Age at Injury:</strong> {{ age_at_injury|round(2) }} years</p>
+                                <p class="mb-1"><strong>Current Age:</strong> {{ age_today|round(2) }} years</p>
+                                <p class="mb-0"><strong>Time Since Injury:</strong> {{ time_since_injury|round(2) }} years</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Manual Input Values Section -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Expectancy Values</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-robot"></i> <strong>Auto-Calculate:</strong> Complete the basic information above, then click the button to automatically calculate expectancy values using the integrated lookup tables.
+                            </div>
+                            <button type="button" class="btn btn-success btn-sm" id="auto-calculate-btn" onclick="autoCalculateExpectancies()">
+                                <i class="fas fa-calculator"></i> Auto-Calculate
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> <strong>Note:</strong> You can either auto-calculate expectancy values or enter them manually. All fields are optional - leave blank to auto-calculate on save.
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="life_expectancy" class="form-label">
+                                    Life Expectancy (years) <span class="text-danger">*</span>
+                                    <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" title="The expected remaining years of life from the date of injury."></i>
+                                </label>
+                                <input type="number" step="0.01" class="form-control" id="life_expectancy" name="life_expectancy" value="{{ evaluee.life_expectancy or '' }}">
+                                <small class="form-text text-muted">Enter the expected remaining years of life from the date of injury. Decimal values (e.g., 20.5) are supported.</small>
+                                <div class="invalid-feedback">Please provide a valid life expectancy value.</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="work_life_expectancy" class="form-label">
+                                    Work Life Expectancy (years) <span class="text-danger">*</span>
+                                    <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" title="The expected number of years the evaluee would have remained in the workforce from the date of injury."></i>
+                                </label>
+                                <input type="number" step="0.01" class="form-control" id="work_life_expectancy" name="work_life_expectancy" value="{{ evaluee.work_life_expectancy or '' }}">
+                                <small class="form-text text-muted">Enter the expected number of years the evaluee would have remained in the workforce.</small>
+                                <div class="invalid-feedback">Please provide a valid work life expectancy value.</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="years_to_final_separation" class="form-label">
+                                    Years to Final Separation <span class="text-danger">*</span>
+                                    <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" title="The expected number of years until the evaluee would have permanently left the workforce."></i>
+                                </label>
+                                <input type="number" step="0.01" class="form-control" id="years_to_final_separation" name="years_to_final_separation" value="{{ evaluee.years_to_final_separation or '' }}">
+                                <small class="form-text text-muted">Enter the expected number of years until permanent workforce separation.</small>
+                                <div class="invalid-feedback">Please provide a valid years to final separation value.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{{ url_for('evaluee.view', evaluee_id=evaluee_id) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Evaluee
+                </a>
+                <div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Demographics
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function autoCalculateExpectancies() {
+    const birthDate = document.getElementById('date_of_birth').value;
+    const injuryDate = document.getElementById('date_of_injury').value;
+    const gender = document.getElementById('gender').value;
+    const educationLevel = document.getElementById('education_level').value;
+    
+    // Validate required fields
+    if (!birthDate || !injuryDate || !gender || !educationLevel) {
+        showToast('Please fill in Date of Birth, Date of Injury, Gender, and Education Level first.', 'warning');
+        return;
+    }
+    
+    // Disable button and show loading
+    const btn = document.getElementById('auto-calculate-btn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculating...';
+    btn.disabled = true;
+    
+    // Make API request
+    fetch('/api/calculate-expectancies', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            birth_date: birthDate,
+            injury_date: injuryDate,
+            gender: gender,
+            education_level: educationLevel
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const expectancies = data.expectancies;
+            
+            // Update form fields
+            if (expectancies.life_expectancy !== null) {
+                document.getElementById('life_expectancy').value = expectancies.life_expectancy.toFixed(2);
+            }
+            if (expectancies.work_life_expectancy !== null) {
+                document.getElementById('work_life_expectancy').value = expectancies.work_life_expectancy.toFixed(2);
+            }
+            if (expectancies.years_to_final_separation !== null) {
+                document.getElementById('years_to_final_separation').value = expectancies.years_to_final_separation.toFixed(2);
+            }
+            
+            showToast('Expectancy values calculated successfully!', 'success');
+        } else {
+            showToast('Error calculating expectancies: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error calculating expectancies. Please try again.', 'error');
+    })
+    .finally(() => {
+        // Re-enable button
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+// Auto-calculate when basic fields change (optional)
+document.addEventListener('DOMContentLoaded', function() {
+    const autoFields = ['date_of_birth', 'date_of_injury', 'gender', 'education_level'];
+    
+    autoFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('change', function() {
+                // Show auto-calculate button if all required fields are filled
+                const allFilled = autoFields.every(id => document.getElementById(id).value);
+                const btn = document.getElementById('auto-calculate-btn');
+                
+                if (allFilled && btn) {
+                    btn.style.display = 'inline-block';
+                    btn.classList.add('pulse-animation');
+                    setTimeout(() => btn.classList.remove('pulse-animation'), 2000);
+                }
+            });
+        }
+    });
+});
+</script>
+
+<style>
+.pulse-animation {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+</style>
+{% endblock %}

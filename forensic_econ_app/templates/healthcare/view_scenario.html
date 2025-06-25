@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>Healthcare Expenses: {{ scenario.scenario_name }}</h2>
+            <p class="text-muted">
+                For: {{ evaluee.first_name }} {{ evaluee.last_name }}
+                {% if evaluee.date_of_birth %}
+                    (Age: {{ ((now - evaluee.date_of_birth).days / 365.25)|int }})
+                {% endif %}
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="btn-group">
+                <a href="{{ url_for('healthcare.manage_items', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" class="btn btn-primary">
+                    <i class="fas fa-edit"></i> Manage Medical Costs
+                </a>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#exportModal">
+                    <i class="fas fa-file-excel"></i> Export to Excel
+                </button>
+                <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-cog"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('healthcare.edit_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}">
+                            <i class="fas fa-cog"></i> Edit Scenario Settings
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('healthcare.duplicate_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" 
+                           onclick="event.preventDefault(); document.getElementById('duplicate-form').submit();">
+                            <i class="fas fa-copy"></i> Duplicate Scenario
+                        </a>
+                        <form id="duplicate-form" method="POST" action="{{ url_for('healthcare.duplicate_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" style="display: none;"></form>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item text-danger" href="#" 
+                           onclick="event.preventDefault(); if(confirm('Are you sure you want to delete this scenario?')) document.getElementById('delete-form').submit();">
+                            <i class="fas fa-trash"></i> Delete Scenario
+                        </a>
+                        <form id="delete-form" method="POST" action="{{ url_for('healthcare.delete_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" style="display: none;"></form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Key Metrics Card -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Key Results</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <div class="p-3 border rounded">
+                                <h6>Total Future Cost</h6>
+                                <h3 class="text-primary">${{ "%.2f"|format(results.grand_total_undiscounted|float) }}</h3>
+                                <small class="text-muted">Total without discounting</small>
+                            </div>
+                        </div>
+                        {% if results.parameters_used.discounting_enabled %}
+                        <div class="col-md-4">
+                            <div class="p-3 border rounded">
+                                <h6>Present Value</h6>
+                                <h3 class="text-success">${{ "%.2f"|format(results.grand_total_present_value|float) }}</h3>
+                                <small class="text-muted">Adjusted for time value of money</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-4">
+                            <div class="p-3 border rounded">
+                                <h6>Projection Period</h6>
+                                <h3 class="text-info">{{ scenario.projection_years }} years</h3>
+                                <small class="text-muted">From {{ now.year }} to {{ now.year + scenario.projection_years - 1 }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Summary By Category -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Summary By Category</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th class="text-end">Total Future Value</th>
+                                    {% if results.parameters_used.discounting_enabled %}
+                                    <th class="text-end">Present Value</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for summary in results.category_summaries %}
+                                    <tr>
+                                        <td>{{ summary.Category }}</td>
+                                        <td class="text-end">${{ "%.2f"|format(summary['Total Future Value']|float) }}</td>
+                                        {% if results.parameters_used.discounting_enabled %}
+                                        <td class="text-end">${{ "%.2f"|format(summary['Total Present Value']|float) }}</td>
+                                        {% endif %}
+                                    </tr>
+                                {% endfor %}
+                                <tr class="table-dark fw-bold">
+                                    <td>Grand Total</td>
+                                    <td class="text-end">${{ "%.2f"|format(results.grand_total_undiscounted|float) }}</td>
+                                    {% if results.parameters_used.discounting_enabled %}
+                                    <td class="text-end">${{ "%.2f"|format(results.grand_total_present_value|float) }}</td>
+                                    {% endif %}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Breakdown by Category and Year -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Detailed Costs By Year</h4>
+                    <div>
+                        <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#detailedBreakdownContent">
+                            <i class="fas fa-chevron-down"></i> Show/Hide Details
+                        </button>
+                    </div>
+                </div>
+                <div class="collapse" id="detailedBreakdownContent">
+                    <div class="card-body">
+                        <ul class="nav nav-tabs" id="categoryTabs" role="tablist">
+                            {% for category, table in results.category_tables.items() %}
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link {% if loop.first %}active{% endif %}" 
+                                            id="tab-{{ category|replace(' ', '-')|lower }}" 
+                                            data-bs-toggle="tab" 
+                                            data-bs-target="#content-{{ category|replace(' ', '-')|lower }}" 
+                                            type="button" role="tab" 
+                                            aria-controls="content-{{ category|replace(' ', '-')|lower }}" 
+                                            aria-selected="{{ 'true' if loop.first else 'false' }}">
+                                        {{ category }}
+                                    </button>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                        <div class="tab-content pt-3" id="categoryTabContent">
+                            {% for category, table in results.category_tables.items() %}
+                                <div class="tab-pane fade {% if loop.first %}show active{% endif %}" 
+                                     id="content-{{ category|replace(' ', '-')|lower }}" 
+                                     role="tabpanel" 
+                                     aria-labelledby="tab-{{ category|replace(' ', '-')|lower }}">
+                                    
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Year</th>
+                                                    <th>Age</th>
+                                                    {% for column in table.keys() %}
+                                                        {% if column not in ['Age', 'Total Future Value', 'Total Present Value'] %}
+                                                            <th>{{ column }}</th>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                    <th>Total Future Value</th>
+                                                    {% if results.parameters_used.discounting_enabled %}
+                                                    <th>Present Value</th>
+                                                    {% endif %}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for year in table['Age'].keys()|sort if year != 'Total' %}
+                                                    <tr>
+                                                        <td>{{ year }}</td>
+                                                        <td>{{ "%.1f"|format(table['Age'][year]|float) if table['Age'][year] != '—' else '—' }}</td>
+                                                        {% for column in table.keys() %}
+                                                            {% if column not in ['Age', 'Total Future Value', 'Total Present Value'] %}
+                                                                <td>${{ "%.2f"|format(table[column][year]|float) if table[column][year] else '0.00' }}</td>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                        <td>${{ "%.2f"|format(table['Total Future Value'][year]|float) }}</td>
+                                                        {% if results.parameters_used.discounting_enabled %}
+                                                        <td>${{ "%.2f"|format(table['Total Present Value'][year]|float) }}</td>
+                                                        {% endif %}
+                                                    </tr>
+                                                {% endfor %}
+                                                <tr class="table-dark fw-bold">
+                                                    <td>Total</td>
+                                                    <td>—</td>
+                                                    {% for column in table.keys() %}
+                                                        {% if column not in ['Age', 'Total Future Value', 'Total Present Value'] %}
+                                                            <td>${{ "%.2f"|format(table[column]['Total']|float) }}</td>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                    <td>${{ "%.2f"|format(table['Total Future Value']['Total']|float) }}</td>
+                                                    {% if results.parameters_used.discounting_enabled %}
+                                                    <td>${{ "%.2f"|format(table['Total Present Value']['Total']|float) }}</td>
+                                                    {% endif %}
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scenario Settings -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Scenario Settings</h4>
+                    <div>
+                        <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#settingsContent">
+                            <i class="fas fa-chevron-down"></i> Show/Hide
+                        </button>
+                    </div>
+                </div>
+                <div class="collapse" id="settingsContent">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Growth Settings</h5>
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>Growth Method:</span>
+                                        <span class="badge bg-primary">{{ scenario.growth_method }}</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>Growth Rate:</span>
+                                        <span class="badge bg-primary">
+                                            {% if scenario.growth_method == 'custom' %}
+                                                {{ "%.2f"|format(scenario.growth_rate_custom * 100) }}%
+                                            {% else %}
+                                                {{ "%.2f"|format(results.parameters_used.growth_rate_effective * 100) }}%
+                                            {% endif %}
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Discount Settings</h5>
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>Discount Method:</span>
+                                        <span class="badge {% if scenario.discount_method == 'none' %}bg-secondary{% else %}bg-primary{% endif %}">
+                                            {{ scenario.discount_method }}
+                                        </span>
+                                    </li>
+                                    {% if scenario.discount_method != 'none' %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>Discount Rate:</span>
+                                        <span class="badge bg-primary">{{ "%.2f"|format(results.parameters_used.discount_rate_effective * 100) }}%</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>Partial Offset:</span>
+                                        <span class="badge {% if scenario.partial_offset %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {{ "Yes" if scenario.partial_offset else "No" }}
+                                        </span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>Total Offset:</span>
+                                        <span class="badge {% if scenario.total_offset %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {{ "Yes" if scenario.total_offset else "No" }}
+                                        </span>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notes Card -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Calculation Notes</h4>
+                </div>
+                <div class="card-body">
+                    <p>{{ results.notes }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exportModalLabel">Export Options</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="exportForm" action="{{ url_for('healthcare.export_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" method="GET">
+                        <p class="mb-3">Add optional headers for each category table in the export:</p>
+                        
+                        {% for category in results.category_tables.keys() %}
+                        <div class="mb-3">
+                            <label for="header_{{ category }}" class="form-label">{{ category }} Header:</label>
+                            <input type="text" class="form-control" id="header_{{ category }}" name="header_{{ category }}" placeholder="Optional header for {{ category }} table">
+                        </div>
+                        {% endfor %}
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" form="exportForm" class="btn btn-primary">Export</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle icons for collapsible sections
+    const collapseTriggers = document.querySelectorAll('[data-bs-toggle="collapse"]');
+    collapseTriggers.forEach(trigger => {
+        trigger.addEventListener('click', function() {
+            const icon = this.querySelector('i');
+            if (icon) {
+                icon.classList.toggle('fa-chevron-down');
+                icon.classList.toggle('fa-chevron-up');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

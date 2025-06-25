@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Internal Server Error{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Internal Server Error</h4>
+                </div>
+                <div class="card-body">
+                    <p class="lead">An unexpected error has occurred.</p>
+                    <p>The error has been logged and will be addressed by our technical team.</p>
+                    <p>Please try again later or contact support if the problem persists.</p>
+
+                    {% if config.DEBUG %}
+                    <div class="alert alert-warning mt-4">
+                        <h5>Debug Information</h5>
+                        {% if error %}
+                        <p><strong>Error:</strong> {{ error }}</p>
+                        {% endif %}
+
+                        {% if error_description %}
+                        <pre class="bg-light p-3 mt-2"><code>{{ error_description }}</code></pre>
+                        {% endif %}
+
+                        <p class="mt-3"><strong>Possible Solutions:</strong></p>
+                        <ul>
+                            <li>Check database migrations: <code>flask db upgrade</code></li>
+                            <li>Check database schema for missing columns</li>
+                            <li>Verify database connection settings</li>
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <a href="{{ url_for('evaluee.index') }}" class="btn btn-primary">Go to Home Page</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

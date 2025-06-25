@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Healthcare Expenses - {{ evaluee.first_name }} {{ evaluee.last_name }}</h2>
+    
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Create New Healthcare Scenario</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('healthcare.create_scenario', evaluee_id=evaluee.id) }}">
+                        <!-- Scenario Name -->
+                        <div class="mb-3">
+                            <label for="scenario_name" class="form-label">Scenario Name</label>
+                            <input type="text" class="form-control" id="scenario_name" name="scenario_name" 
+                                   placeholder="e.g., Base Scenario, High Growth, etc." required>
+                            <div class="form-text">Give this set of healthcare costs a meaningful name</div>
+                        </div>
+                        
+                        <!-- Basic Settings Panel -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h5 class="mb-0">Basic Settings</h5>
+                            </div>
+                            <div class="card-body">
+                                <!-- Projection Years -->
+                                <div class="mb-3">
+                                    <label for="projection_years" class="form-label">
+                                        Projection Years
+                                        <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" 
+                                           title="How many years to project healthcare costs into the future"></i>
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="projection_years" name="projection_years" 
+                                               value="{{ evaluee.life_expectancy if evaluee.life_expectancy else 20 }}" 
+                                               min="0.1" max="100" step="0.1">
+                                        <button class="btn btn-outline-secondary" type="button" 
+                                                onclick="document.getElementById('projection_years').value = '{{ evaluee.life_expectancy if evaluee.life_expectancy else 20 }}'">
+                                            Reset to Life Expectancy
+                                        </button>
+                                    </div>
+                                    <div class="form-text">
+                                        {% if evaluee.life_expectancy %}
+                                            Based on evaluee's life expectancy of {{ evaluee.life_expectancy }} years.
+                                            {% if evaluee.date_of_birth %}
+                                                <br>
+                                                Current age: {{ ((now - evaluee.date_of_birth).days / 365.25)|round(1) }} years
+                                            {% endif %}
+                                        {% else %}
+                                            Life expectancy not set in demographics. Using default of 20 years.
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Growth Rate Settings -->
+                                <div class="mb-3">
+                                    <label for="growth_method" class="form-label">
+                                        Cost Growth Type
+                                        <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" 
+                                           title="How medical costs will increase over time"></i>
+                                    </label>
+                                    <select class="form-select" id="growth_method" name="growth_method">
+                                        <option value="CPI">Consumer Price Index (CPI) - 3.0%</option>
+                                        <option value="Medical_CPI">Medical CPI - 3.5%</option>
+                                        <option value="PCE">Personal Consumption Expenditure (PCE) - 2.5%</option>
+                                        <option value="custom">Custom Rate</option>
+                                    </select>
+                                    <div class="form-text">Standard cost growth measures are pre-filled with typical values</div>
+                                </div>
+                                
+                                <div class="mb-3" id="custom_growth_container">
+                                    <label for="growth_rate_custom" class="form-label">Custom Growth Rate (%)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="growth_rate_custom" name="growth_rate_custom" 
+                                               step="0.001" value="3.0">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <div class="form-text">Enter your own annual percentage increase</div>
+                                </div>
+                                
+                                <!-- Simple Discounting Option -->
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        Apply Discounting?
+                                        <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" 
+                                           title="Discounting converts future dollars to present value"></i>
+                                    </label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="discount_method" id="discount_yes" value="nominal" checked>
+                                        <label class="form-check-label" for="discount_yes">
+                                            Yes, apply standard discounting
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="discount_method" id="discount_no" value="none">
+                                        <label class="form-check-label" for="discount_no">
+                                            No, show future costs only
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div id="discount_rate_container" class="mb-3">
+                                    <label for="discount_rate" class="form-label">Discount Rate (%)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="discount_rate" name="discount_rate" 
+                                               step="0.001" value="5.0">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <div class="form-text">Standard discount rate is typically around 5%</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Advanced Options (collapsed by default) -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light" id="advancedOptionsHeader" role="button" data-bs-toggle="collapse" data-bs-target="#advancedOptionsContent">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">Advanced Options</h5>
+                                    <i class="fas fa-chevron-down"></i>
+                                </div>
+                            </div>
+                            <div class="collapse" id="advancedOptionsContent">
+                                <div class="card-body">
+                                    <!-- Advanced Discounting Options -->
+                                    <div class="mb-4">
+                                        <h6>Advanced Discounting Options</h6>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="discount_method" id="discount_real" value="real">
+                                            <label class="form-check-label" for="discount_real">
+                                                Real Discount Rate (adjusted for inflation)
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="discount_method" id="discount_net" value="net">
+                                            <label class="form-check-label" for="discount_net">
+                                                Net Discount Rate (applied directly)
+                                            </label>
+                                        </div>
+                                        
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="partial_offset" name="partial_offset">
+                                            <label class="form-check-label" for="partial_offset">
+                                                Use Partial Offset Method
+                                                <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" 
+                                                   title="Discount rate partially offsets growth rate"></i>
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="total_offset" name="total_offset">
+                                            <label class="form-check-label" for="total_offset">
+                                                Use Total Offset Method
+                                                <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" 
+                                                   title="Discount rate equals growth rate"></i>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Medical Inflation Modeling -->
+                                    <div>
+                                        <h6>Medical Inflation Modeling</h6>
+                                        <div class="mb-3">
+                                            <label for="inflation_model" class="form-label">Inflation Model</label>
+                                            <select class="form-select" id="inflation_model" name="inflation_model">
+                                                <option value="linear" {% if scenario and scenario.inflation_model == 'linear' %}selected{% endif %}>Linear (Constant Rate)</option>
+                                                <option value="dual_rate" {% if scenario and scenario.inflation_model == 'dual_rate' %}selected{% endif %}>Dual Rate (Short/Long Term)</option>
+                                            </select>
+                                            <div class="form-text">Choose how inflation is applied over time</div>
+                                        </div>
+                                        
+                                        <div id="dual_rate_fields" class="{% if not scenario or scenario.inflation_model != 'dual_rate' %}d-none{% endif %}">
+                                            <div class="mb-3">
+                                                <label for="inflation_transition_year" class="form-label">Transition Year</label>
+                                                <input type="number" class="form-control" id="inflation_transition_year" name="inflation_transition_year" 
+                                                       value="{{ scenario.inflation_transition_year if scenario else '10' }}" min="1">
+                                                <div class="form-text">Year to transition from short-term to long-term rate</div>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label for="inflation_long_term_rate" class="form-label">Long-Term Rate (%)</label>
+                                                <div class="input-group">
+                                                    <input type="number" step="0.001" class="form-control" id="inflation_long_term_rate" name="inflation_long_term_rate" 
+                                                           value="{{ scenario.inflation_long_term_rate * 100 if scenario and scenario.inflation_long_term_rate else '2.5' }}">
+                                                    <span class="input-group-text">%</span>
+                                                </div>
+                                                <div class="form-text">Long-term inflation rate (typically lower than short-term)</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Create Scenario</button>
+                        <a href="{{ url_for('evaluee.view', evaluee_id=evaluee.id) }}" class="btn btn-secondary">Back to Evaluee</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Existing Scenarios</h4>
+                </div>
+                <div class="card-body">
+                    {% if scenarios %}
+                        <div class="list-group">
+                            {% for scenario in scenarios %}
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <a href="{{ url_for('healthcare.view_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" 
+                                               class="text-decoration-none">
+                                                {{ scenario.scenario_name }}
+                                                <small class="text-muted d-block">Created: {{ scenario.created_at.strftime('%Y-%m-%d') }}</small>
+                                            </a>
+                                        </div>
+                                        <div>
+                                            <form action="{{ url_for('healthcare.duplicate_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" 
+                                                  method="POST" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary" 
+                                                        title="Duplicate">
+                                                    <i class="fas fa-copy"></i>
+                                                </button>
+                                            </form>
+                                            <form action="{{ url_for('healthcare.delete_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" 
+                                                  method="POST" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                        title="Delete"
+                                                        onclick="return confirm('Are you sure you want to delete this scenario? This action cannot be undone.')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No healthcare scenarios created yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Quick Help Card -->
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Quick Help</h4>
+                </div>
+                <div class="card-body">
+                    <h5>Healthcare Module Steps:</h5>
+                    <ol>
+                        <li>Create a scenario with basic settings</li>
+                        <li>Add individual medical costs</li>
+                        <li>Review cost projections</li>
+                        <li>Export to Excel for reporting</li>
+                    </ol>
+                    <h5>Key Terms:</h5>
+                    <ul>
+                        <li><strong>Growth Rate:</strong> How much costs increase each year</li>
+                        <li><strong>Discounting:</strong> Converts future dollars to present value</li>
+                        <li><strong>Projection Years:</strong> How far into the future to calculate</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const growthMethodSelect = document.getElementById('growth_method');
+    const growthRateCustomInput = document.getElementById('growth_rate_custom');
+    const customGrowthContainer = document.getElementById('custom_growth_container');
+    const partialOffsetCheckbox = document.getElementById('partial_offset');
+    const totalOffsetCheckbox = document.getElementById('total_offset');
+    const discountMethodRadios = document.querySelectorAll('input[name="discount_method"]');
+    const discountRateInput = document.getElementById('discount_rate');
+    const discountRateContainer = document.getElementById('discount_rate_container');
+    
+    // Toggle custom growth rate input visibility
+    function updateGrowthRateVisibility() {
+        customGrowthContainer.style.display = growthMethodSelect.value === 'custom' ? 'block' : 'none';
+    }
+    
+    // Ensure only one offset type can be selected
+    function handleOffsetChange(e) {
+        if (e.target === partialOffsetCheckbox && partialOffsetCheckbox.checked) {
+            totalOffsetCheckbox.checked = false;
+        } else if (e.target === totalOffsetCheckbox && totalOffsetCheckbox.checked) {
+            partialOffsetCheckbox.checked = false;
+        }
+    }
+    
+    // Handle discount method changes
+    function handleDiscountMethodChange() {
+        const selectedValue = document.querySelector('input[name="discount_method"]:checked').value;
+        const isNoDiscounting = selectedValue === 'none';
+        discountRateContainer.style.display = isNoDiscounting ? 'none' : 'block';
+        
+        if (isNoDiscounting) {
+            discountRateInput.value = '0.0';
+        } else if (discountRateInput.value === '0.0') {
+            discountRateInput.value = '5.0';
+        }
+    }
+    
+    // Event listeners
+    growthMethodSelect.addEventListener('change', updateGrowthRateVisibility);
+    partialOffsetCheckbox.addEventListener('change', handleOffsetChange);
+    totalOffsetCheckbox.addEventListener('change', handleOffsetChange);
+    
+    discountMethodRadios.forEach(radio => {
+        radio.addEventListener('change', handleDiscountMethodChange);
+    });
+    
+    // Toggle advanced options header
+    document.getElementById('advancedOptionsHeader').addEventListener('click', function() {
+        const icon = this.querySelector('i');
+        icon.classList.toggle('fa-chevron-down');
+        icon.classList.toggle('fa-chevron-up');
+    });
+    
+    // Toggle dual rate fields based on inflation model selection
+    document.getElementById('inflation_model').addEventListener('change', function() {
+        const dualRateFields = document.getElementById('dual_rate_fields');
+        if (this.value === 'dual_rate') {
+            dualRateFields.classList.remove('d-none');
+        } else {
+            dualRateFields.classList.add('d-none');
+        }
+    });
+    
+    // Initial setup
+    updateGrowthRateVisibility();
+    handleDiscountMethodChange();
+    
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+});
+</script>
+{% endblock %}
+{% endblock %} 

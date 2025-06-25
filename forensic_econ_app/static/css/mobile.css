@@ -1,0 +1,343 @@
+/* Mobile-specific styles for Economic Analysis Tool */
+
+/* Mobile Scrolling Fix */
+html, body {
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+body {
+    position: relative;
+    min-height: 100vh;
+}
+
+/* General Mobile Optimizations */
+@media (max-width: 768px) {
+    /* Ensure proper scrolling on mobile */
+    body {
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .container {
+        overflow: visible;
+    }
+    /* Improve touch targets */
+    .btn, .form-control, .form-select, .nav-link {
+        min-height: 44px;
+        padding: 12px 16px;
+    }
+    
+    /* Better spacing for mobile forms */
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    
+    /* Stack form columns on mobile */
+    .row > [class*='col-'] {
+        margin-bottom: 1rem;
+    }
+    
+    /* Make cards full width on mobile */
+    .card {
+        margin-bottom: 1rem;
+        border-radius: 8px;
+    }
+    
+    /* Improve table readability */
+    .table-responsive {
+        font-size: 14px;
+    }
+    
+    .table td, .table th {
+        padding: 0.5rem;
+    }
+    
+    /* Navigation improvements */
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    /* Dropdown improvements */
+    .dropdown-menu {
+        width: 100%;
+        border-radius: 0;
+    }
+    
+    /* Modal improvements */
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    .modal-content {
+        border-radius: 12px;
+    }
+    
+    /* Button groups */
+    .btn-group {
+        display: flex;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        flex: 1;
+    }
+    
+    /* Alert improvements */
+    .alert {
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    /* Breadcrumb improvements */
+    .breadcrumb {
+        font-size: 12px;
+        padding: 0.5rem 0;
+    }
+    
+    /* Form specific improvements */
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"] {
+        width: 100%;
+    }
+    
+    /* Number inputs - make them easier to use */
+    input[type="number"] {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    /* Checkbox and radio improvements */
+    .form-check {
+        padding-left: 2rem;
+        margin-bottom: 1rem;
+    }
+    
+    .form-check-input {
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-top: 0.125rem;
+    }
+    
+    /* Tab navigation for mobile */
+    .nav-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        white-space: nowrap;
+    }
+    
+    .nav-tabs .nav-link {
+        padding: 0.75rem 1rem;
+        font-size: 14px;
+    }
+    
+    /* Card headers */
+    .card-header {
+        padding: 1rem;
+        font-size: 1.1rem;
+    }
+    
+    /* Result summaries */
+    .h5 {
+        font-size: 1.1rem;
+    }
+    
+    .h6 {
+        font-size: 1rem;
+    }
+    
+    /* Icon sizing */
+    .fas, .far, .fab {
+        font-size: 1.1rem;
+    }
+    
+    /* Evaluee cards on dashboard */
+    .evaluee-card {
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* Action buttons */
+    .btn-sm {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    /* Float labels for better mobile UX */
+    .form-floating > .form-control {
+        padding: 1.625rem 0.75rem 0.625rem;
+    }
+    
+    .form-floating > label {
+        padding: 1rem 0.75rem;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 576px) {
+    .container {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+    
+    /* Stack all buttons vertically */
+    .btn-toolbar {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-toolbar .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Full width inputs */
+    .input-group {
+        flex-direction: column;
+    }
+    
+    .input-group-text {
+        width: 100%;
+        border-radius: 0.375rem 0.375rem 0 0;
+    }
+    
+    .input-group .form-control {
+        border-radius: 0 0 0.375rem 0.375rem;
+    }
+    
+    /* Compact headers */
+    h1 { font-size: 1.75rem; }
+    h2 { font-size: 1.5rem; }
+    h3 { font-size: 1.25rem; }
+    h4 { font-size: 1.1rem; }
+    
+    /* Scenario cards */
+    .scenario-card {
+        padding: 1rem;
+    }
+    
+    /* Results display */
+    .results-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Touch-friendly enhancements */
+@media (hover: none) and (pointer: coarse) {
+    /* Larger touch targets */
+    a, button, input, select, textarea {
+        min-height: 44px;
+    }
+    
+    /* Remove hover effects on touch devices */
+    .btn:hover {
+        background-color: inherit;
+    }
+    
+    /* Better focus styles */
+    input:focus, select:focus, textarea:focus {
+        outline: 3px solid #0d6efd;
+        outline-offset: 2px;
+    }
+}
+
+/* Landscape mobile adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+    .navbar {
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+    }
+}
+
+/* Specific component mobile styles */
+
+/* Earnings form mobile */
+.earnings-form-mobile {
+    padding: 1rem;
+}
+
+/* Life Care Plan mobile */
+.lcp-service-item {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Household services mobile */
+.stage-card {
+    margin-bottom: 1rem;
+}
+
+/* Date picker improvements */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    width: 44px;
+    height: 44px;
+    margin-left: -20px;
+    margin-right: -20px;
+    opacity: 0;
+    cursor: pointer;
+}
+
+
+/* Sticky action buttons */
+@media (max-width: 768px) {
+    .mobile-sticky-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        border-top: 1px solid #dee2e6;
+        padding: 1rem;
+        z-index: 1020;
+    }
+    
+    .mobile-sticky-footer .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Add padding to prevent content hiding behind sticky footer */
+    body.has-sticky-footer {
+        padding-bottom: 120px;
+    }
+    
+    /* Fix for forms that might have scrolling issues */
+    form {
+        overflow: visible;
+    }
+    
+    /* Ensure modals don't interfere with scrolling */
+    .modal-backdrop {
+        position: fixed;
+    }
+    
+    .modal.show {
+        overflow-y: auto;
+    }
+}
+
+/* Loading spinner for mobile */
+.mobile-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+}
+
+/* Swipe hints */
+.swipe-hint {
+    font-size: 12px;
+    color: #6c757d;
+    text-align: center;
+    padding: 0.5rem;
+}

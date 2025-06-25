@@ -1,0 +1,480 @@
+{% extends "base.html" %}
+
+{% block title %}Forensic Economic Reports{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+    .integration-badge {
+        background: linear-gradient(45deg, #8e44ad, #3498db);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: bold;
+    }
+    
+    .report-card {
+        transition: transform 0.2s;
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .report-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 0.5rem;
+    }
+    
+    .status-complete { background-color: #27ae60; }
+    .status-incomplete { background-color: #e74c3c; }
+    .status-partial { background-color: #f39c12; }
+    
+    .feature-list {
+        background-color: #f8f9fa;
+        border-left: 4px solid #3498db;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="bi bi-file-earmark-text text-primary"></i>
+                        Forensic Economic Reports
+                    </h1>
+                    <p class="text-muted mb-0">Generate professional forensic economic reports using integrated data</p>
+                </div>
+                <div>
+                    <span class="integration-badge">
+                        <i class="bi bi-link-45deg"></i> Integrated System
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Integration Features Info -->
+    <div class="feature-list">
+        <h5><i class="bi bi-info-circle text-primary"></i> Integration Features</h5>
+        <div class="row">
+            <div class="col-md-6">
+                <ul class="list-unstyled mb-0">
+                    <li>✅ Real-time data from your evaluee profiles</li>
+                    <li>✅ Integrated worklife and demographic calculations</li>
+                    <li>✅ Professional AEF and present value methodology</li>
+                    <li>✅ Kincaid Wolstein template formatting</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <ul class="list-unstyled mb-0">
+                    <li>✅ State-specific adjustments and factors</li>
+                    <li>✅ Educational attainment considerations</li>
+                    <li>✅ Pediatric case handling</li>
+                    <li>✅ Professional download and archiving</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Generator Interface -->
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Evaluee Selection -->
+            <div class="card report-card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person-check"></i> Select Evaluee for Report Generation
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-10">
+                            <label for="evalueeSelect" class="form-label fw-bold">Select Evaluee:</label>
+                            <select class="form-select" id="evalueeSelect">
+                                <option value="">Choose an evaluee...</option>
+                                {% for evaluee in evaluees %}
+                                <option value="{{ evaluee.id }}" 
+                                        data-name="{{ evaluee.first_name }} {{ evaluee.last_name }}"
+                                        data-state="{{ evaluee.state }}"
+                                        data-dob="{{ evaluee.date_of_birth.strftime('%Y-%m-%d') if evaluee.date_of_birth else '' }}"
+                                        data-doi="{{ evaluee.date_of_injury.strftime('%Y-%m-%d') if evaluee.date_of_injury else '' }}"
+                                        data-earnings="{{ evaluee.gross_earnings_base or 0 }}">
+                                    {{ evaluee.first_name }} {{ evaluee.last_name }} 
+                                    ({{ evaluee.state }})
+                                    {% if evaluee.date_of_injury %}
+                                        - DOI: {{ evaluee.date_of_injury.strftime('%m/%d/%Y') }}
+                                    {% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-outline-secondary w-100" onclick="refreshEvaluees()">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Evaluee Details -->
+            <div class="card report-card mb-4" id="evalueeDetailsCard" style="display: none;">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle"></i> Evaluee Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="evalueeDetails">
+                        <!-- Details will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Report Generation Controls -->
+            <div class="card report-card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-gear"></i> Report Generation
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex gap-3 align-items-center mb-3">
+                        <button class="btn btn-success btn-lg" id="generateBtn" onclick="generateReport()" disabled>
+                            <i class="bi bi-file-earmark-plus"></i> Generate Professional Report
+                        </button>
+                        <button class="btn btn-primary" id="downloadBtn" onclick="downloadReport()" disabled>
+                            <i class="bi bi-download"></i> Download Report
+                        </button>
+                        <div class="flex-grow-1">
+                            <div class="progress" id="progressBar" style="display: none;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 100%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="statusMessage" class="alert alert-info" style="display: none;">
+                        Ready to generate professional forensic economic reports
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar with Evaluee List -->
+        <div class="col-md-4">
+            <div class="card report-card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-list-ul"></i> Your Evaluees
+                        <span class="badge bg-light text-dark ms-2">{{ evaluees|length }}</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for evaluee in evaluees[:10] %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold">{{ evaluee.first_name }} {{ evaluee.last_name }}</div>
+                                <small class="text-muted">
+                                    {{ evaluee.state }}
+                                    {% if evaluee.date_of_injury %}
+                                        | DOI: {{ evaluee.date_of_injury.strftime('%m/%d/%Y') }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div>
+                                {% if evaluee.gross_earnings_base %}
+                                    <span class="status-indicator status-complete" title="Complete"></span>
+                                {% else %}
+                                    <span class="status-indicator status-incomplete" title="Incomplete"></span>
+                                {% endif %}
+                                <button class="btn btn-sm btn-outline-primary" 
+                                        onclick="selectEvaluee({{ evaluee.id }})"
+                                        title="Generate Report">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if evaluees|length > 10 %}
+                        <div class="list-group-item text-center">
+                            <small class="text-muted">
+                                ... and {{ evaluees|length - 10 }} more evaluees
+                            </small>
+                        </div>
+                        {% endif %}
+                        
+                        {% if not evaluees %}
+                        <div class="list-group-item text-center text-muted">
+                            <i class="bi bi-inbox"></i><br>
+                            No evaluees found.<br>
+                            <a href="{{ url_for('evaluee.create') }}" class="btn btn-sm btn-primary mt-2">
+                                Create Evaluee
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Preview -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card report-card">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-eye"></i> Report Preview
+                    </h5>
+                    <div class="input-group" style="width: 300px;">
+                        <input type="text" class="form-control form-control-sm" 
+                               id="searchInput" placeholder="Search report...">
+                        <button class="btn btn-outline-light btn-sm" onclick="searchReport()">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="reportPreview" style="font-family: 'Courier New', monospace; font-size: 0.9rem; max-height: 600px; overflow-y: auto; background-color: #f8f9fa; padding: 1rem; border-radius: 5px;">
+                        <div class="text-center text-muted py-5">
+                            <h4><i class="bi bi-file-earmark-text-fill"></i></h4>
+                            <p>Select an evaluee and generate a report to preview it here.</p>
+                            <hr>
+                            <p><strong>Professional Features:</strong></p>
+                            <ul class="list-unstyled">
+                                <li>✓ Kincaid Wolstein professional template</li>
+                                <li>✓ Integrated economic analysis data</li>
+                                <li>✓ Daubert-compliant methodology</li>
+                                <li>✓ Present value calculations</li>
+                                <li>✓ State and education adjustments</li>
+                                <li>✓ Ready for litigation use</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentSessionId = null;
+let currentReport = '';
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    updateStatus('Ready to generate professional forensic economic reports');
+});
+
+// Handle evaluee selection
+document.getElementById('evalueeSelect').addEventListener('change', function() {
+    const evalueeId = this.value;
+    if (evalueeId) {
+        loadEvalueeDetails(evalueeId);
+        document.getElementById('generateBtn').disabled = false;
+    } else {
+        document.getElementById('evalueeDetailsCard').style.display = 'none';
+        document.getElementById('generateBtn').disabled = true;
+    }
+});
+
+function selectEvaluee(evalueeId) {
+    document.getElementById('evalueeSelect').value = evalueeId;
+    document.getElementById('evalueeSelect').dispatchEvent(new Event('change'));
+}
+
+function refreshEvaluees() {
+    location.reload();
+}
+
+function loadEvalueeDetails(evalueeId) {
+    fetch(`/forensic-reports/api/evaluee/${evalueeId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const evaluee = data.evaluee;
+                const detailsHtml = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Full Name:</strong> ${evaluee.name}</p>
+                            <p><strong>State:</strong> ${evaluee.state}</p>
+                            <p><strong>Date of Birth:</strong> ${evaluee.date_of_birth ? new Date(evaluee.date_of_birth).toLocaleDateString() : 'N/A'}</p>
+                            <p><strong>Date of Injury:</strong> ${evaluee.date_of_injury ? new Date(evaluee.date_of_injury).toLocaleDateString() : 'N/A'}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Age at Injury:</strong> ${evaluee.age_at_injury ? evaluee.age_at_injury.toFixed(1) + ' years' : 'N/A'}</p>
+                            <p><strong>Current Age:</strong> ${evaluee.current_age ? evaluee.current_age.toFixed(1) + ' years' : 'N/A'}</p>
+                            <p><strong>Education Level:</strong> ${evaluee.education_level || 'N/A'}</p>
+                            <p><strong>Gender:</strong> ${evaluee.gender || 'N/A'}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Gross Earnings Base:</strong> ${evaluee.gross_earnings_base ? '$' + evaluee.gross_earnings_base.toLocaleString() : 'N/A'}</p>
+                            <p><strong>Work Life Expectancy:</strong> ${evaluee.work_life_expectancy ? evaluee.work_life_expectancy.toFixed(1) + ' years' : 'N/A'}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Regional Adjustment:</strong> ${evaluee.regional_adjustment ? evaluee.regional_adjustment.toFixed(3) : '1.000'}</p>
+                            <p><strong>Pediatric Case:</strong> ${evaluee.is_pediatric_case ? 'Yes' : 'No'}</p>
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <strong>System Status:</strong> All integrated economic analysis data available for professional report generation.
+                    </div>
+                `;
+                
+                document.getElementById('evalueeDetails').innerHTML = detailsHtml;
+                document.getElementById('evalueeDetailsCard').style.display = 'block';
+                updateStatus(`Selected case: ${evaluee.name} - Ready to generate professional report`);
+            } else {
+                updateStatus('Error loading evaluee details: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            updateStatus('Error loading evaluee details: ' + error, 'error');
+        });
+}
+
+function generateReport() {
+    const evalueeId = document.getElementById('evalueeSelect').value;
+    if (!evalueeId) {
+        alert('Please select an evaluee first');
+        return;
+    }
+
+    // Disable button and show progress
+    document.getElementById('generateBtn').disabled = true;
+    document.getElementById('downloadBtn').disabled = true;
+    document.getElementById('progressBar').style.display = 'block';
+    updateStatus('Generating professional forensic economic report using integrated data...');
+
+    fetch('/forensic-reports/api/generate-report', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({evaluee_id: parseInt(evalueeId)})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentSessionId = data.session_id;
+            checkReportStatus();
+        } else {
+            updateStatus('Error: ' + data.error, 'error');
+            resetGenerateButton();
+        }
+    })
+    .catch(error => {
+        updateStatus('Error generating report: ' + error, 'error');
+        resetGenerateButton();
+    });
+}
+
+function checkReportStatus() {
+    if (!currentSessionId) return;
+
+    fetch(`/forensic-reports/api/report-status/${currentSessionId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.status === 'completed') {
+                    currentReport = data.report;
+                    document.getElementById('reportPreview').innerHTML = 
+                        `<pre>${escapeHtml(data.report)}</pre>`;
+                    
+                    updateStatus(`Report generated successfully (${data.length.toLocaleString()} characters) - Ready for download`);
+                    
+                    document.getElementById('generateBtn').disabled = false;
+                    document.getElementById('downloadBtn').disabled = false;
+                    document.getElementById('progressBar').style.display = 'none';
+                    
+                    // Show success message
+                    setTimeout(() => {
+                        alert(`Professional forensic economic report generated successfully!\\n\\nReport Length: ${data.length.toLocaleString()} characters\\nCase: ${data.evaluee_name}\\n\\nUse 'Download Report' to save to your preferred location.`);
+                    }, 500);
+                    
+                } else if (data.status === 'generating') {
+                    updateStatus('Generating report using integrated economic analysis data... Please wait');
+                    setTimeout(checkReportStatus, 2000);
+                } else if (data.status === 'error') {
+                    updateStatus('Error: ' + data.error, 'error');
+                    resetGenerateButton();
+                }
+            } else {
+                updateStatus('Error checking status: ' + data.error, 'error');
+                resetGenerateButton();
+            }
+        })
+        .catch(error => {
+            updateStatus('Error checking status: ' + error, 'error');
+            resetGenerateButton();
+        });
+}
+
+function downloadReport() {
+    if (!currentSessionId) {
+        alert('No report available to download');
+        return;
+    }
+
+    window.location.href = `/forensic-reports/api/download-report/${currentSessionId}`;
+    updateStatus('Report download initiated');
+}
+
+function searchReport() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const reportText = document.getElementById('reportPreview').textContent;
+    
+    if (!searchTerm || !reportText) return;
+    
+    // Simple highlight implementation
+    const highlightedText = reportText.replace(
+        new RegExp(searchTerm, 'gi'),
+        `<mark>$&</mark>`
+    );
+    
+    document.getElementById('reportPreview').innerHTML = `<pre>${highlightedText}</pre>`;
+}
+
+function resetGenerateButton() {
+    document.getElementById('generateBtn').disabled = false;
+    document.getElementById('progressBar').style.display = 'none';
+}
+
+function updateStatus(message, type = 'info') {
+    const statusElement = document.getElementById('statusMessage');
+    const timestamp = new Date().toLocaleTimeString();
+    statusElement.innerHTML = `[${timestamp}] ${message}`;
+    statusElement.style.display = 'block';
+    
+    // Update alert class based on type
+    statusElement.className = 'alert ' + (type === 'error' ? 'alert-danger' : 'alert-info');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

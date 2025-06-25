@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Quick Start Guide{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1>Quick Start Guide</h1>
+            <p class="lead">Welcome to the Economic Analysis Application. This guide will help you get started quickly.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Recommended Workflow</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Follow this step-by-step process for the most efficient workflow.
+                    </div>
+                    
+                    <div class="workflow-steps">
+                        <div class="workflow-step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h4>Create a New Evaluee</h4>
+                                <p>Start by creating a new evaluee with basic information like name and state.</p>
+                                <a href="{{ url_for('evaluee.create') }}" class="btn btn-primary">Create New Evaluee</a>
+                            </div>
+                        </div>
+                        
+                        <div class="workflow-step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h4>Enter Demographics</h4>
+                                <p>Enter demographic information including date of birth, date of injury, gender, and education level.</p>
+                                <p><strong>Pro Tip:</strong> Use the "Use Table Values" button to automatically calculate worklife expectancy and years to final separation.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="workflow-step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h4>Set Worklife Factor</h4>
+                                <p>Review and adjust the worklife factor if needed.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="workflow-step">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <h4>Create Earnings Scenarios</h4>
+                                <p>Add one or more earnings scenarios to model different income possibilities.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="workflow-step">
+                            <div class="step-number">5</div>
+                            <div class="step-content">
+                                <h4>Add Medical Costs</h4>
+                                <p>Enter medical procedures and create cost projections.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="workflow-step">
+                            <div class="step-number">6</div>
+                            <div class="step-content">
+                                <h4>Add Household Services</h4>
+                                <p>Calculate household services losses if applicable.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="workflow-step">
+                            <div class="step-number">7</div>
+                            <div class="step-content">
+                                <h4>Generate Reports</h4>
+                                <p>Create combined reports with all the analysis results.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h3 class="mb-0">Using the Wizard</h3>
+                </div>
+                <div class="card-body">
+                    <p>For a guided experience, use the Wizard feature which will walk you through each step of the process.</p>
+                    <p>The wizard automatically saves your progress and validates your inputs at each step.</p>
+                    
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('evaluee.dashboard') }}" class="btn btn-success btn-lg">
+                            <i class="fas fa-magic"></i> Start with the Wizard
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h3 class="mb-0">Keyboard Shortcuts</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Navigation</h5>
+                            <ul class="list-group">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Go to Dashboard
+                                    <span class="badge bg-primary">Alt + D</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Create New Evaluee
+                                    <span class="badge bg-primary">Alt + N</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Save Form
+                                    <span class="badge bg-primary">Ctrl + S</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Wizard</h5>
+                            <ul class="list-group">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Next Step
+                                    <span class="badge bg-primary">Alt + Right</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Previous Step
+                                    <span class="badge bg-primary">Alt + Left</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Finish Wizard
+                                    <span class="badge bg-primary">Alt + Enter</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .workflow-steps {
+        position: relative;
+        padding-left: 50px;
+    }
+    
+    .workflow-steps:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 24px;
+        width: 2px;
+        background-color: #3498db;
+    }
+    
+    .workflow-step {
+        position: relative;
+        margin-bottom: 30px;
+    }
+    
+    .step-number {
+        position: absolute;
+        left: -50px;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: #3498db;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.2rem;
+        z-index: 2;
+    }
+    
+    .step-content {
+        padding: 15px;
+        border-left: 3px solid #3498db;
+        background-color: #f8f9fa;
+        border-radius: 0 5px 5px 0;
+    }
+    
+    .step-content h4 {
+        color: #3498db;
+        margin-bottom: 10px;
+    }
+</style>
+{% endblock %}

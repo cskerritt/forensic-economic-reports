@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Pediatric Economic Analysis{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <div class="card">
+            <div class="card-body">
+                <h1 class="card-title">Pediatric Economic Analysis</h1>
+                <p class="lead">
+                    Create a new economic analysis for pediatric case: 
+                    <strong>{{ evaluee.first_name }} {{ evaluee.last_name }}</strong>
+                </p>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> 
+                    This analysis will calculate income projections for different educational attainment 
+                    scenarios starting from when the child would have entered the workforce.
+                </div>
+                
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Analysis Title</label>
+                        <input type="text" class="form-control" id="title" name="title" 
+                               value="Pediatric Economic Analysis - {{ evaluee.first_name }} {{ evaluee.last_name }}">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="current_age" class="form-label">Current Age</label>
+                                <input type="number" class="form-control" id="current_age" name="current_age" 
+                                       min="0" max="18" value="5" required>
+                                <div class="form-text">Current age of the child (0-18 years)</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="retirement_age" class="form-label">Retirement Age</label>
+                                <input type="number" class="form-control" id="retirement_age" name="retirement_age" 
+                                       min="55" max="75" value="67" required>
+                                <div class="form-text">Expected retirement age</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="use_statistical_retirement" name="use_statistical_retirement" value="true" checked>
+                        <label class="form-check-label" for="use_statistical_retirement">
+                            Use statistical retirement age data (Skoog, Ciecka, and Krueger, 2019)
+                        </label>
+                        <div class="form-text">When checked, the retirement age above will be overridden with statistical data based on education level</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="gender" class="form-label">Gender</label>
+                                <select class="form-select" id="gender" name="gender">
+                                    <option value="neutral">Gender Neutral</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                                <div class="form-text">Used to apply gender-specific earnings adjustments if applicable</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="regional_adjustment" class="form-label">Regional Adjustment (%)</label>
+                                <input type="number" class="form-control" id="regional_adjustment" name="regional_adjustment" 
+                                       value="0" step="0.1">
+                                <div class="form-text">Adjust for regional income differences (e.g., 10 for 10% higher than national average)</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="growth_rate" class="form-label">Income Growth Rate (%)</label>
+                        <input type="number" class="form-control" id="growth_rate" name="growth_rate" 
+                               min="0" max="10" step="0.1" value="3.0" required>
+                        <div class="form-text">Annual income growth rate (percentage)</div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">Educational Attainment Scenarios</div>
+                        <div class="card-body">
+                            <p>The analysis will include calculations for the following educational scenarios:</p>
+                            
+                            <ul class="list-group mb-3">
+                                {% if evaluee.calculate_hs_diploma %}
+                                <li class="list-group-item list-group-item-success">
+                                    <i class="fas fa-check-circle"></i> High School Diploma (workforce entry at age 18)
+                                </li>
+                                {% endif %}
+                                
+                                {% if evaluee.calculate_some_college %}
+                                <li class="list-group-item list-group-item-success">
+                                    <i class="fas fa-check-circle"></i> Some College (workforce entry at age 19)
+                                </li>
+                                {% endif %}
+                                
+                                {% if evaluee.calculate_associates %}
+                                <li class="list-group-item list-group-item-success">
+                                    <i class="fas fa-check-circle"></i> Associate's Degree (workforce entry at age 20)
+                                </li>
+                                {% endif %}
+                                
+                                {% if evaluee.calculate_bachelors %}
+                                <li class="list-group-item list-group-item-success">
+                                    <i class="fas fa-check-circle"></i> Bachelor's Degree (workforce entry at age 22)
+                                </li>
+                                {% endif %}
+                            </ul>
+                            
+                            <p>
+                                <small>
+                                    To modify these scenarios, <a href="{{ url_for('evaluee.edit', evaluee_id=evaluee.id) }}">edit the evaluee</a> 
+                                    and update the pediatric case settings.
+                                </small>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">Parental Education Information</div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Parent 1 Education:</strong> {{ evaluee.parent1_education or 'Not specified' }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Parent 2 Education:</strong> {{ evaluee.parent2_education or 'Not specified' }}</p>
+                                </div>
+                            </div>
+                            <p class="form-text">
+                                <small>
+                                    This information is used to calculate the probability of different educational outcomes.
+                                    To modify, <a href="{{ url_for('evaluee.edit', evaluee_id=evaluee.id) }}">edit the evaluee</a>.
+                                </small>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">Discounting</div>
+                        <div class="card-body">
+                            <p>
+                                <strong>Discounting Status:</strong> 
+                                {% if evaluee.discounting %}
+                                    <span class="badge bg-success">Enabled</span>
+                                    <p>
+                                        <strong>Discount Rates:</strong> 
+                                        {% for rate in evaluee.discount_rates %}
+                                            <span class="badge bg-info">{{ rate }}%</span>
+                                        {% endfor %}
+                                    </p>
+                                {% else %}
+                                    <span class="badge bg-secondary">Disabled</span>
+                                {% endif %}
+                            </p>
+                            <p class="form-text">
+                                <small>
+                                    Discounting settings are inherited from the evaluee.
+                                    To modify, <a href="{{ url_for('evaluee.edit', evaluee_id=evaluee.id) }}">edit the evaluee</a>.
+                                </small>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{{ url_for('evaluee.detail', evaluee_id=evaluee.id) }}" class="btn btn-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Create Analysis</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

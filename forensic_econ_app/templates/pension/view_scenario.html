@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}{{ scenario.scenario_name }} - Pension Analysis{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ scenario.scenario_name }}</h2>
+        <div>
+            <a href="{{ url_for('pension.edit_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" 
+               class="btn btn-primary">
+                <i class="fas fa-edit"></i> Edit Scenario
+            </a>
+            <form action="{{ url_for('pension.delete_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" 
+                  method="POST" class="d-inline">
+                <button type="submit" class="btn btn-danger" 
+                        onclick="return confirm('Are you sure you want to delete this scenario?')">
+                    <i class="fas fa-trash"></i> Delete Scenario
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4>Scenario Details</h4>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-6">Calculation Method</dt>
+                        <dd class="col-sm-6">{{ scenario.calculation_method|title }}</dd>
+                        
+                        <dt class="col-sm-6">Growth Rate</dt>
+                        <dd class="col-sm-6">{{ "{:.1f}%".format(scenario.growth_rate * 100) }}</dd>
+                        
+                        <dt class="col-sm-6">Discount Rate</dt>
+                        <dd class="col-sm-6">{{ "{:.1f}%".format(scenario.discount_rate * 100) }}</dd>
+                        
+                        {% if scenario.calculation_method == 'contributions' %}
+                            <dt class="col-sm-6">Years to Retirement</dt>
+                            <dd class="col-sm-6">{{ scenario.years_to_retirement }}</dd>
+                            
+                            <dt class="col-sm-6">Annual Contribution</dt>
+                            <dd class="col-sm-6">${{ "{:,.2f}".format(scenario.annual_contribution) }}</dd>
+                        {% else %}
+                            <dt class="col-sm-6">Retirement Age</dt>
+                            <dd class="col-sm-6">{{ scenario.retirement_age }}</dd>
+                            
+                            <dt class="col-sm-6">Life Expectancy</dt>
+                            <dd class="col-sm-6">{{ scenario.life_expectancy }}</dd>
+                            
+                            <dt class="col-sm-6">Annual Pension Benefit</dt>
+                            <dd class="col-sm-6">${{ "{:,.2f}".format(scenario.annual_pension_benefit) }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4>Present Value Calculation</h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center">
+                        <h3 class="text-primary mb-4">${{ "{:,.2f}".format(scenario.present_value) }}</h3>
+                        <p class="text-muted">
+                            This represents the present value of 
+                            {% if scenario.calculation_method == 'contributions' %}
+                                lost employer pension contributions
+                            {% else %}
+                                lost pension payments
+                            {% endif %}
+                            over the specified period.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Annual Breakdown</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Year</th>
+                                    {% if scenario.calculation_method == 'contributions' %}
+                                        <th>Annual Contribution</th>
+                                    {% else %}
+                                        <th>Annual Pension Benefit</th>
+                                    {% endif %}
+                                    <th>Growth Factor</th>
+                                    <th>Discount Factor</th>
+                                    <th>Present Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if scenario.calculation_method == 'contributions' %}
+                                    {% for year in range(1, scenario.years_to_retirement + 1) %}
+                                        {% set growth_factor = (1 + scenario.growth_rate) ** year %}
+                                        {% set discount_factor = (1 + scenario.discount_rate) ** year %}
+                                        {% set annual_value = scenario.annual_contribution * growth_factor %}
+                                        {% set present_value = annual_value / discount_factor %}
+                                        <tr>
+                                            <td>{{ year }}</td>
+                                            <td>${{ "{:,.2f}".format(annual_value) }}</td>
+                                            <td>{{ "{:.4f}".format(growth_factor) }}</td>
+                                            <td>{{ "{:.4f}".format(discount_factor) }}</td>
+                                            <td>${{ "{:,.2f}".format(present_value) }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    {% for year in range(scenario.retirement_age, scenario.life_expectancy + 1) %}
+                                        {% set year_diff = year - scenario.retirement_age %}
+                                        {% set growth_factor = (1 + scenario.growth_rate) ** year_diff %}
+                                        {% set discount_factor = (1 + scenario.discount_rate) ** year_diff %}
+                                        {% set annual_value = scenario.annual_pension_benefit * growth_factor %}
+                                        {% set present_value = annual_value / discount_factor %}
+                                        <tr>
+                                            <td>{{ year }}</td>
+                                            <td>${{ "{:,.2f}".format(annual_value) }}</td>
+                                            <td>{{ "{:.4f}".format(growth_factor) }}</td>
+                                            <td>{{ "{:.4f}".format(discount_factor) }}</td>
+                                            <td>${{ "{:,.2f}".format(present_value) }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Retirement Planning Analysis</h5>
+        </div>
+        <div class="card-body">
+            {% if scenario.calculation_method == 'payments' %}
+                <h6>Retirement Options Comparison</h6>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Retirement Age</th>
+                                <th>Annual Benefit</th>
+                                <th>Present Value</th>
+                                <th>Difference</th>
+                            </tr>
+                        </thead>
+                        <tbody id="retirement-options">
+                            <tr>
+                                <td colspan="4" class="text-center">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-4">
+                    <h6>Social Security Integration</h6>
+                    {% if scenario.include_social_security %}
+                        <div class="alert alert-info">
+                            <p><strong>Social Security Benefits:</strong> ${{ "{:,.2f}".format(scenario.social_security_benefit) }} annually starting at age {{ scenario.social_security_start_age }}</p>
+                            <p>Social Security benefits are included in the present value calculation.</p>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Social Security benefits are not included in this scenario.</p>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <p>Retirement planning analysis is only available for pension payment scenarios.</p>
+                    <p>This scenario is calculating lost contributions rather than lost pension payments.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{{ url_for('pension.pension_form', evaluee_id=evaluee.id) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Scenarios
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Calculate retirement options
+    function calculateRetirementOptions() {
+        const optionsTable = document.getElementById('retirement-options');
+        
+        {% if scenario.calculation_method == 'payments' %}
+            fetch('{{ url_for("pension.get_retirement_options", evaluee_id=evaluee.id, scenario_id=scenario.id) }}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.options && data.options.length > 0) {
+                        // Clear loading spinner
+                        optionsTable.innerHTML = '';
+                        
+                        // Get standard option for comparison
+                        const standardOption = data.options[0];
+                        
+                        // Add rows for each option
+                        data.options.forEach(option => {
+                            const row = document.createElement('tr');
+                            
+                            // Calculate difference from standard
+                            const difference = option.present_value - standardOption.present_value;
+                            const differenceClass = difference >= 0 ? 'text-success' : 'text-danger';
+                            const differencePrefix = difference >= 0 ? '+' : '';
+                            
+                            row.innerHTML = `
+                                <td>${option.retirement_age}</td>
+                                <td>${formatCurrency(option.annual_benefit)}</td>
+                                <td>${formatCurrency(option.present_value)}</td>
+                                <td class="${differenceClass}">${differencePrefix}${formatCurrency(difference)}</td>
+                            `;
+                            
+                            optionsTable.appendChild(row);
+                        });
+                    } else {
+                        optionsTable.innerHTML = '<tr><td colspan="4" class="text-center">No retirement options available</td></tr>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    optionsTable.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error loading retirement options</td></tr>';
+                });
+        {% endif %}
+    }
+    
+    // Format currency
+    function formatCurrency(value) {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        calculateRetirementOptions();
+    });
+</script>
+{% endblock %} 

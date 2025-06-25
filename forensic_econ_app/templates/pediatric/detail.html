@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+
+{% block title %}Pediatric Economic Analysis{% endblock %}
+
+{% block extra_head %}
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 30px;
+    }
+    .results-card {
+        transition: all 0.3s ease;
+    }
+    .results-card:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    .education-label {
+        font-weight: 600;
+        border-radius: 4px;
+        padding: 4px 8px;
+        display: inline-block;
+        margin-bottom: 5px;
+    }
+    .hs-diploma {
+        background-color: rgba(75, 192, 192, 0.2);
+        border: 1px solid rgba(75, 192, 192, 1);
+    }
+    .some-college {
+        background-color: rgba(153, 102, 255, 0.2);
+        border: 1px solid rgba(153, 102, 255, 1);
+    }
+    .associates {
+        background-color: rgba(255, 159, 64, 0.2);
+        border: 1px solid rgba(255, 159, 64, 1);
+    }
+    .bachelors {
+        background-color: rgba(54, 162, 235, 0.2);
+        border: 1px solid rgba(54, 162, 235, 1);
+    }
+    .weighted {
+        background-color: rgba(255, 99, 132, 0.2);
+        border: 1px solid rgba(255, 99, 132, 1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="card-title mb-0">{{ analysis.title }}</h1>
+                    <div>
+                        <a href="{{ url_for('evaluee.detail', evaluee_id=evaluee.id) }}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left"></i> Back to Evaluee
+                        </a>
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header">Analysis Information</div>
+                            <div class="card-body">
+                                <p><strong>Evaluee:</strong> {{ evaluee.first_name }} {{ evaluee.last_name }}</p>
+                                <p><strong>Analysis Type:</strong> <span class="badge bg-info">Pediatric Case</span></p>
+                                <p><strong>Created:</strong> {{ analysis.created_at.strftime('%Y-%m-%d') }}</p>
+                                
+                                <hr>
+                                
+                                <h5>Parameters</h5>
+                                <p><strong>Current Age:</strong> {{ analysis.parameters.current_age }} years</p>
+                                <p><strong>Retirement Age:</strong> {{ analysis.parameters.retirement_age }} years</p>
+                                <p><strong>Gender:</strong> {{ analysis.parameters.gender|title }}</p>
+                                <p><strong>Regional Adjustment:</strong> {{ (analysis.parameters.regional_adjustment * 100)|round(1) }}%</p>
+                                <p><strong>Growth Rate:</strong> {{ (analysis.parameters.growth_rate * 100)|round(1) }}%</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header">Educational Scenarios</div>
+                            <div class="card-body">
+                                <ul class="list-group">
+                                    {% for scenario in analysis.parameters.education_scenarios %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ scenario }}
+                                        {% set entry_age = analysis.results.scenario_results[scenario].entry_age %}
+                                        <span class="badge bg-primary rounded-pill">Entry Age: {{ entry_age }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                
+                                <hr>
+                                
+                                <h5>Parental Education</h5>
+                                <p><strong>Parent 1:</strong> {{ evaluee.parent1_education or 'Not specified' }}</p>
+                                <p><strong>Parent 2:</strong> {{ evaluee.parent2_education or 'Not specified' }}</p>
+                                
+                                <hr>
+                                
+                                <h5>Discounting</h5>
+                                <p>
+                                    <strong>Status:</strong> 
+                                    {% if evaluee.discounting %}
+                                        <span class="badge bg-success">Enabled</span>
+                                        <p>
+                                            <strong>Rates:</strong> 
+                                            {% for rate in evaluee.discount_rates %}
+                                                <span class="badge bg-info">{{ rate }}%</span>
+                                            {% endfor %}
+                                        </p>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Disabled</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="mt-4 mb-3">Economic Projections</h3>
+                
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">Annual Income Projections</div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="yearlyProjectionsChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">Lifetime Earnings by Education Level</div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="totalEarningsChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if 'discount_values' in analysis.results and analysis.results.discount_values %}
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">Present Value at Different Discount Rates</div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="discountRatesChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <h3 class="mt-4 mb-3">Summary of Results</h3>
+                
+                <div class="row">
+                    <!-- Summary for each educational scenario -->
+                    {% for scenario in analysis.parameters.education_scenarios %}
+                    {% set result = analysis.results.scenario_results[scenario] %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card results-card">
+                            <div class="card-header">
+                                {% if scenario == "High school diploma" %}
+                                <span class="education-label hs-diploma">{{ scenario }}</span>
+                                {% elif scenario == "Some college" %}
+                                <span class="education-label some-college">{{ scenario }}</span>
+                                {% elif scenario == "Associate's degree" %}
+                                <span class="education-label associates">{{ scenario }}</span>
+                                {% elif scenario == "Bachelor's degree" %}
+                                <span class="education-label bachelors">{{ scenario }}</span>
+                                {% else %}
+                                <span class="education-label">{{ scenario }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Workforce Entry Age:</strong> {{ result.entry_age }}</p>
+                                <p><strong>Years Until Workforce Entry:</strong> {{ result.years_until_entry }}</p>
+                                <p><strong>Days to Occupational Maturity:</strong> {{ result.days_to_maturity }}</p>
+                                <p><strong>Statistical Retirement Age:</strong> {{ result.retirement_age|round(2) }}</p>
+                                <p><strong>Worklife Expectancy (WLE):</strong> {{ result.worklife_expectancy|round(2) }} years</p>
+                                <p><strong>Age of Final Separation:</strong> {{ result.age_final_separation|round(2) }}</p>
+                                <p><strong>Worklife-to-Retirement Ratio:</strong> {{ result.worklife_ratio|round(2) }}%</p>
+                                <p><strong>Total Lifetime Earnings:</strong> ${{ "{:,.2f}".format(result.total) }}</p>
+                                
+                                {% if evaluee.discounting and analysis.results.discount_values[scenario] %}
+                                <hr>
+                                <h6>Present Value at Different Discount Rates:</h6>
+                                <ul class="list-group">
+                                    {% for rate, value in analysis.results.discount_values[scenario].items() %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ rate }}% Discount Rate
+                                        <span class="badge bg-primary rounded-pill">${{ "{:,.2f}".format(value) }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <!-- Summary for weighted projection -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card results-card">
+                            <div class="card-header">
+                                <span class="education-label weighted">Weighted Projection</span>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Total Weighted Lifetime Earnings:</strong> ${{ "{:,.2f}".format(analysis.results.weighted_total) }}</p>
+                                <p><strong>Based on education probabilities from parental education</strong></p>
+                                
+                                {% if evaluee.discounting and analysis.results.discount_values.weighted %}
+                                <hr>
+                                <h6>Present Value at Different Discount Rates:</h6>
+                                <ul class="list-group">
+                                    {% for rate, value in analysis.results.discount_values.weighted.items() %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ rate }}% Discount Rate
+                                        <span class="badge bg-primary rounded-pill">${{ "{:,.2f}".format(value) }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete this pediatric economic analysis? This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('pediatric.delete', analysis_id=analysis.id) }}" method="POST">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Fetch chart data from the API
+    fetch("{{ url_for('pediatric.chart_data', analysis_id=analysis.id) }}")
+        .then(response => response.json())
+        .then(data => {
+            // Create the annual income projections chart
+            const yearlyCtx = document.getElementById('yearlyProjectionsChart').getContext('2d');
+            new Chart(yearlyCtx, {
+                type: 'line',
+                data: data.education_scenarios,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Income Projections by Education Level'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: $${context.raw.toLocaleString('en-US', {maximumFractionDigits: 0})}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString('en-US', {maximumFractionDigits: 0});
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Create the total lifetime earnings chart
+            const totalCtx = document.getElementById('totalEarningsChart').getContext('2d');
+            new Chart(totalCtx, {
+                type: 'bar',
+                data: data.total_earnings,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Total Lifetime Earnings'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `$${context.raw.toLocaleString('en-US', {maximumFractionDigits: 0})}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString('en-US', {maximumFractionDigits: 0});
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Create the discount rates chart if data is available
+            if (data.discount_values) {
+                const discountCtx = document.getElementById('discountRatesChart').getContext('2d');
+                new Chart(discountCtx, {
+                    type: 'bar',
+                    data: data.discount_values,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Present Value at Different Discount Rates'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `$${context.raw.toLocaleString('en-US', {maximumFractionDigits: 0})}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '$' + value.toLocaleString('en-US', {maximumFractionDigits: 0});
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading chart data:', error);
+            document.querySelectorAll('.chart-container').forEach(container => {
+                container.innerHTML = '<div class="alert alert-danger">Error loading chart data. Please refresh the page and try again.</div>';
+            });
+        });
+</script>
+{% endblock %} 

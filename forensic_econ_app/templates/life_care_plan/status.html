@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Life Care Plan Package Status{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12 col-lg-10 col-xl-8 mx-auto">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+                <h1 class="mb-2 mb-md-0"><i class="fas fa-cogs me-2"></i><span class="d-none d-lg-inline">Life Care Plan Package Status</span><span class="d-lg-none">Package Status</span></h1>
+                <a href="{{ url_for('life_care_plan.evaluees_index') }}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Life Care Plans
+                </a>
+            </div>
+            
+            {% if full_available %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>All Dependencies Available!</strong> Full Life Care Plan functionality is ready.
+                Restart the application to activate advanced features.
+            </div>
+            {% else %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Missing Dependencies:</strong> Some packages are required for full functionality.
+            </div>
+            {% endif %}
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Package Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Package</th>
+                                    <th class="d-none d-md-table-cell">Required Version</th>
+                                    <th>Status</th>
+                                    <th class="d-none d-lg-table-cell">Purpose</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <code>pandas</code>
+                                            <div class="d-md-none mt-1">
+                                                <small class="text-muted">v2.0.0+</small>
+                                                <div class="d-lg-none mt-1">
+                                                    <small class="text-muted">Data manipulation and analysis</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="d-none d-md-table-cell">&gt;= 2.0.0</td>
+                                    <td>
+                                        {% if package_status.pandas == 'available' %}
+                                        <span class="badge bg-success"><i class="fas fa-check"></i><span class="d-none d-sm-inline"> Available</span></span>
+                                        {% else %}
+                                        <span class="badge bg-danger"><i class="fas fa-times"></i><span class="d-none d-sm-inline"> Missing</span></span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="d-none d-lg-table-cell">Data manipulation and analysis</td>
+                                </tr>
+                                <tr>
+                                    <td><code>openpyxl</code></td>
+                                    <td>&gt;= 3.1.0</td>
+                                    <td>
+                                        {% if package_status.openpyxl == 'available' %}
+                                        <span class="badge bg-success"><i class="fas fa-check"></i> Available</span>
+                                        {% else %}
+                                        <span class="badge bg-danger"><i class="fas fa-times"></i> Missing</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>Excel file generation and export</td>
+                                </tr>
+                                <tr>
+                                    <td><code>python-docx</code></td>
+                                    <td>&gt;= 1.1.0</td>
+                                    <td>
+                                        {% if package_status.docx == 'available' %}
+                                        <span class="badge bg-success"><i class="fas fa-check"></i> Available</span>
+                                        {% else %}
+                                        <span class="badge bg-danger"><i class="fas fa-times"></i> Missing</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>Word document generation and export</td>
+                                </tr>
+                                <tr>
+                                    <td><code>matplotlib</code></td>
+                                    <td>&gt;= 3.7.0</td>
+                                    <td>
+                                        {% if package_status.matplotlib == 'available' %}
+                                        <span class="badge bg-success"><i class="fas fa-check"></i> Available</span>
+                                        {% else %}
+                                        <span class="badge bg-danger"><i class="fas fa-times"></i> Missing</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>Charts and visualizations in reports</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            {% if not full_available %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Installation Instructions</h5>
+                </div>
+                <div class="card-body">
+                    <p>To enable full Life Care Plan functionality, install the missing packages:</p>
+                    
+                    <h6>Option 1: Using pip</h6>
+                    <div class="alert alert-secondary">
+                        <code class="text-break">pip install pandas>=2.0.0 openpyxl>=3.1.0 python-docx>=1.1.0 matplotlib>=3.7.0</code>
+                    </div>
+                    
+                    <h6>Option 2: Using conda</h6>
+                    <div class="alert alert-secondary">
+                        <code class="text-break">conda install pandas openpyxl python-docx matplotlib</code>
+                    </div>
+                    
+                    <h6>Option 3: Using requirements.txt</h6>
+                    <p>Add these lines to your requirements.txt:</p>
+                    <div class="alert alert-secondary">
+                        <code>
+                            pandas>=2.0.0<br>
+                            openpyxl>=3.1.0<br>
+                            python-docx>=1.1.0<br>
+                            matplotlib>=3.7.0
+                        </code>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> After installing the packages, restart the application for changes to take effect.
+                        The system will automatically detect the packages and enable full functionality.
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Full Functionality Features</h5>
+                </div>
+                <div class="card-body">
+                    <p>When all dependencies are installed, you'll have access to:</p>
+                    <div class="row">
+                        <div class="col-12 col-md-6">
+                            <ul>
+                                <li><i class="fas fa-calculator text-primary"></i> Advanced cost calculations with inflation and present value</li>
+                                <li><i class="fas fa-chart-line text-success"></i> Multiple scenario modeling (conservative, moderate, optimistic)</li>
+                                <li><i class="fas fa-file-excel text-success"></i> Professional Excel exports with detailed breakdowns</li>
+                                <li><i class="fas fa-file-word text-primary"></i> Comprehensive Word document reports</li>
+                            </ul>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <ul>
+                                <li><i class="fas fa-cog text-warning"></i> Equipment replacement cycle calculations</li>
+                                <li><i class="fas fa-tags text-info"></i> Service categorization and organization</li>
+                                <li><i class="fas fa-chart-pie text-warning"></i> Cost breakdowns and visualizations</li>
+                                <li><i class="fas fa-balance-scale text-secondary"></i> Daubert-compliant methodology documentation</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

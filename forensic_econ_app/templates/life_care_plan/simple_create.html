@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Create Life Care Plan Evaluee{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12 col-lg-6 mx-auto">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+                <h1 class="mb-2 mb-md-0"><i class="fas fa-user-plus me-2"></i><span class="d-none d-md-inline">Create Life Care Plan Evaluee</span><span class="d-md-none">Create Evaluee</span></h1>
+                <a href="{{ url_for('life_care_plan.evaluees_index') }}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-arrow-left me-2"></i>Back
+                </a>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                This is a simplified version. Full life care plan functionality with comprehensive forms, 
+                calculations, and exports is available when all dependencies are installed.
+            </div>
+            
+            <form method="POST" class="needs-validation" novalidate>
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Basic Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="first_name" class="form-label">First Name *</label>
+                                <input type="text" class="form-control form-control-lg" id="first_name" name="first_name" required>
+                                <div class="invalid-feedback">Please provide a first name.</div>
+                            </div>
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="last_name" class="form-label">Last Name *</label>
+                                <input type="text" class="form-control form-control-lg" id="last_name" name="last_name" required>
+                                <div class="invalid-feedback">Please provide a last name.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="date_of_birth" class="form-label">Date of Birth</label>
+                                <input type="date" class="form-control form-control-lg" id="date_of_birth" name="date_of_birth">
+                            </div>
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="date_of_injury" class="form-label">Date of Injury</label>
+                                <input type="date" class="form-control form-control-lg" id="date_of_injury" name="date_of_injury">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="primary_diagnosis" class="form-label">Primary Diagnosis</label>
+                            <textarea class="form-control form-control-lg" id="primary_diagnosis" name="primary_diagnosis" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 d-grid gap-2 d-md-flex justify-content-md-center">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>Create Evaluee
+                    </button>
+                    <a href="{{ url_for('life_care_plan.evaluees_index') }}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Bootstrap form validation
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+</script>
+{% endblock %}

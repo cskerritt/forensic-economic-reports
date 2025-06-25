@@ -1,0 +1,715 @@
+{% extends "base.html" %}
+
+{% block title %}Earnings Calculator{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="h2 h1-md">Earnings Calculator</h1>
+        <p class="lead">Calculate earnings with multiple scenarios and present value calculations.</p>
+        
+        <div class="card mb-4">
+            <div class="card-body p-3 p-md-4">
+                <h5 class="card-title">Create New Scenario</h5>
+                
+                <!-- Quick Actions -->
+                <div class="row mb-4">
+                    <div class="col-md-8">
+                        <label for="scenario_name" class="form-label fw-bold">Scenario Name</label>
+                        <input type="text" class="form-control form-control-lg" id="scenario_name" name="scenario_name" required>
+                    </div>
+                    <div class="col-md-4">
+                        {% if existing_scenarios %}
+                        <label for="copy_from_scenario" class="form-label fw-bold">Copy From Existing</label>
+                        <select class="form-select form-select-lg" id="copy_from_scenario" onchange="copyScenarioData(this.value)">
+                            <option value="">Select scenario to copy...</option>
+                            {% for scenario in existing_scenarios %}
+                            <option value="{{ scenario.id }}" 
+                                    data-name="{{ scenario.scenario_name }}"
+                                    data-start="{{ scenario.start_date.strftime('%Y-%m-%d') }}"
+                                    data-end="{{ scenario.end_date.strftime('%Y-%m-%d') }}"
+                                    data-wage="{{ scenario.wage_base }}"
+                                    data-residual="{{ scenario.residual_base or 0 }}"
+                                    data-growth="{{ scenario.growth_rate or 0 }}"
+                                    data-adjustment="{{ scenario.adjustment_factor or 100 }}">
+                                {{ scenario.scenario_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Smart Defaults Info -->
+                {% if defaults %}
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-magic me-2"></i>Smart Defaults Applied</h6>
+                    <small>
+                        Age: {{ defaults.current_age or 'Not set' }} | 
+                        State: {{ evaluee.state }} ({{ "%.1f"|format((defaults.regional_adjustment or 1.0) * 100) }}% wage adjustment) |
+                        Growth Rate: {{ defaults.growth_rate }}%
+                        {% if defaults.work_end_date %}| Work End: {{ defaults.work_end_date }}{% endif %}
+                    </small>
+                </div>
+                {% endif %}
+                
+                <form method="POST">
+                    
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="start_date" class="form-label fw-bold">Start Date</label>
+                                <input type="date" class="form-control form-control-lg" id="start_date" name="start_date" required>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="end_date" class="form-label fw-bold">End Date</label>
+                                <input type="date" class="form-control form-control-lg" id="end_date" name="end_date" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pre/Post Injury Toggle -->
+                    <div class="mb-4">
+                        <div class="form-check p-3 border rounded bg-light">
+                            <input class="form-check-input form-check-input-lg" type="checkbox" id="use_pre_post_injury" name="use_pre_post_injury" onchange="togglePrePostInjury()" style="width: 1.5em; height: 1.5em;">
+                            <label class="form-check-label ms-2 fw-bold" for="use_pre_post_injury">
+                                Use Pre- and Post-Injury Analysis
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Injury Date and Report Date (shown when pre/post analysis is enabled) -->
+                    <div id="injury_date_section" style="display: none;">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                    <label for="injury_date" class="form-label fw-bold">Date of Injury <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control form-control-lg" id="injury_date" name="injury_date" value="{{ evaluee.date_of_injury.strftime('%Y-%m-%d') if evaluee.date_of_injury else '' }}">
+                                    <div class="form-text">When the injury occurred</div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                    <label for="report_date" class="form-label fw-bold">Report Date <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control form-control-lg" id="report_date" name="report_date" value="{{ today }}" required>
+                                    <div class="form-text">Date of this economic analysis</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="alert alert-info mt-3 p-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Analysis Periods:</strong>
+                            <ul class="mb-0 mt-2 ps-3">
+                                <li class="mb-1"><strong>Pre-injury:</strong> Start date to injury date (baseline earnings)</li>
+                                <li class="mb-1"><strong>Past losses:</strong> Injury date to report date (losses to date)</li>
+                                <li><strong>Future losses:</strong> Report date to end date (projected future losses)</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- Traditional Wage Fields (shown when pre/post analysis is disabled) -->
+                    <div id="traditional_wage_section">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                    <label for="wage_base" class="form-label fw-bold">Base Wage (Annual)</label>
+                                    <input type="number" step="0.01" class="form-control form-control-lg" id="wage_base" name="wage_base" required>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                    <label for="residual_base" class="form-label fw-bold">Residual Base</label>
+                                    <input type="number" step="0.01" class="form-control form-control-lg" id="residual_base" name="residual_base" value="0">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pre/Post Injury Wage Fields (shown when pre/post analysis is enabled) -->
+                    <div id="pre_post_wage_section" style="display: none;">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                    <label for="pre_injury_wage" class="form-label fw-bold">Pre-Injury Wage (Annual)</label>
+                                    <input type="number" step="0.01" class="form-control form-control-lg" id="pre_injury_wage" name="pre_injury_wage">
+                                    <div class="form-text">What the evaluee was earning before the injury</div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                    <label for="post_injury_wage" class="form-label fw-bold">Post-Injury Wage (Annual)</label>
+                                    <input type="number" step="0.01" class="form-control form-control-lg" id="post_injury_wage" name="post_injury_wage" value="0">
+                                    <div class="form-text">What the evaluee can earn after the injury (residual earning capacity)</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-3 mt-1">
+                            <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                    <label for="pre_injury_growth_rate" class="form-label fw-bold">Pre-Injury Growth Rate (%)</label>
+                                    <input type="number" step="0.01" class="form-control form-control-lg" id="pre_injury_growth_rate" name="pre_injury_growth_rate" value="3.0">
+                                    <div class="form-text">Annual wage growth rate for pre-injury period</div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                    <label for="post_injury_growth_rate" class="form-label fw-bold">Post-Injury Growth Rate (%)</label>
+                                    <input type="number" step="0.01" class="form-control form-control-lg" id="post_injury_growth_rate" name="post_injury_growth_rate" value="2.0">
+                                    <div class="form-text">Annual wage growth rate for post-injury period</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-3 mt-2">
+                        <div class="col-12 col-md-4">
+                            <div class="mb-3">
+                                <label for="growth_rate" class="form-label fw-bold">Growth Rate (%)</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.001" class="form-control form-control-lg" id="growth_rate" name="growth_rate" value="{{ defaults.growth_rate if defaults else 3.2 }}">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <small class="form-text text-muted">Enter as percentage (e.g., 4 for 4%)</small>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="mb-3">
+                                <label for="adjustment_factor" class="form-label fw-bold">Adjustment Factor (%)</label>
+                                <input type="number" step="0.001" class="form-control form-control-lg" id="adjustment_factor" name="adjustment_factor" value="100">
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="mb-3">
+                                <label for="discount_rate" class="form-label fw-bold">Discount Rate (%)</label>
+                                <input type="number" step="0.001" class="form-control form-control-lg" id="discount_rate" name="discount_rate" value="{{ defaults.discount_rate if defaults else 3.5 }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="form-check p-3 border rounded bg-light">
+                                <input type="checkbox" class="form-check-input form-check-input-lg" id="include_discounting" name="include_discounting" checked style="width: 1.5em; height: 1.5em;">
+                                <label class="form-check-label ms-2 fw-bold" for="include_discounting">Include Discounting</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-block">
+                        <button type="submit" class="btn btn-primary btn-lg px-5">Create Scenario</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4 class="mb-0">Advanced Options</h4>
+            </div>
+            <div class="card-body p-3 p-md-4">
+                <ul class="nav nav-tabs nav-justified flex-column flex-md-row" id="advancedTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active py-3 px-2" id="seasonal-tab" data-bs-toggle="tab" data-bs-target="#seasonal" type="button" role="tab" aria-controls="seasonal" aria-selected="true">Seasonal Employment</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link py-3 px-2" id="education-tab" data-bs-toggle="tab" data-bs-target="#education" type="button" role="tab" aria-controls="education" aria-selected="false">Education Impact</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link py-3 px-2" id="industry-tab" data-bs-toggle="tab" data-bs-target="#industry" type="button" role="tab" aria-controls="industry" aria-selected="false">Industry Growth</button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content p-3 border border-top-0 rounded-bottom" id="advancedTabsContent">
+                    <!-- Seasonal Employment Tab -->
+                    <div class="tab-pane fade show active" id="seasonal" role="tabpanel" aria-labelledby="seasonal-tab">
+                        <div class="form-check p-3 border rounded bg-light mb-4">
+                            <input class="form-check-input form-check-input-lg" type="checkbox" id="is_seasonal" name="is_seasonal" style="width: 1.5em; height: 1.5em;">
+                            <label class="form-check-label ms-2 fw-bold" for="is_seasonal">
+                                Seasonal Employment
+                            </label>
+                            <div class="form-text ms-4">Check if employment is seasonal (varies throughout the year)</div>
+                        </div>
+                        
+                        <div id="seasonal_fields" class="d-none">
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <div class="mb-3">
+                                        <label for="season_start_month" class="form-label fw-bold">Season Start Month</label>
+                                        <select class="form-select form-select-lg" id="season_start_month" name="season_start_month">
+                                            <option value="1">January</option>
+                                            <option value="2">February</option>
+                                            <option value="3">March</option>
+                                            <option value="4">April</option>
+                                            <option value="5">May</option>
+                                            <option value="6">June</option>
+                                            <option value="7">July</option>
+                                            <option value="8">August</option>
+                                            <option value="9">September</option>
+                                            <option value="10">October</option>
+                                            <option value="11">November</option>
+                                            <option value="12">December</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div class="mb-3">
+                                        <label for="season_end_month" class="form-label fw-bold">Season End Month</label>
+                                        <select class="form-select form-select-lg" id="season_end_month" name="season_end_month">
+                                            <option value="1">January</option>
+                                            <option value="2">February</option>
+                                            <option value="3">March</option>
+                                            <option value="4">April</option>
+                                            <option value="5">May</option>
+                                            <option value="6">June</option>
+                                            <option value="7">July</option>
+                                            <option value="8">August</option>
+                                            <option value="9">September</option>
+                                            <option value="10">October</option>
+                                            <option value="11">November</option>
+                                            <option value="12">December</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3 mt-3">
+                                <label for="off_season_income_factor" class="form-label fw-bold">Off-Season Income Factor (%)</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.001" class="form-control form-control-lg" id="off_season_income_factor" name="off_season_income_factor" value="0">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="form-text">Percentage of regular income during off-season months (0% = no income)</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Education Impact Tab -->
+                    <div class="tab-pane fade" id="education" role="tabpanel" aria-labelledby="education-tab">
+                        <div class="mb-4">
+                            <label for="education_level" class="form-label fw-bold">Education Level</label>
+                            <select class="form-select form-select-lg" id="education_level" name="education_level">
+                                <option value="">None</option>
+                                <option value="high_school">High School</option>
+                                <option value="associate">Associate's Degree</option>
+                                <option value="bachelor">Bachelor's Degree</option>
+                                <option value="master">Master's Degree</option>
+                                <option value="doctorate">Doctorate</option>
+                            </select>
+                        </div>
+                        
+                        <div id="education_fields" class="d-none">
+                            <div class="mb-4">
+                                <label for="education_impact_factor" class="form-label fw-bold">Income Increase (%)</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.001" class="form-control form-control-lg" id="education_impact_factor" name="education_impact_factor">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="form-text">Percentage increase in income due to education</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="education_completion_year" class="form-label fw-bold">Completion Year</label>
+                                <input type="number" class="form-control form-control-lg" id="education_completion_year" name="education_completion_year" min="{{ current_year }}">
+                                <div class="form-text">Year when education is completed</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Industry Growth Tab -->
+                    <div class="tab-pane fade" id="industry" role="tabpanel" aria-labelledby="industry-tab">
+                        <div class="mb-4">
+                            <label for="industry_preset" class="form-label fw-bold">Industry</label>
+                            <select class="form-select form-select-lg" id="industry_preset">
+                                <option value="">Custom</option>
+                                <option value="healthcare">Healthcare (4.2%)</option>
+                                <option value="technology">Technology (5.8%)</option>
+                                <option value="manufacturing">Manufacturing (2.1%)</option>
+                                <option value="retail">Retail (1.9%)</option>
+                                <option value="construction">Construction (3.5%)</option>
+                                <option value="education">Education (2.7%)</option>
+                                <option value="finance">Finance (4.0%)</option>
+                            </select>
+                            <div class="form-text">Select an industry to use preset growth rates</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if evaluee.earnings_scenarios %}
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 gap-2">
+            <h2 class="h3 mb-0">Existing Scenarios</h2>
+            <button type="button" class="btn btn-success btn-lg" onclick="exportCurrentScenario()">
+                <i class="bi bi-file-excel"></i> Export to Excel
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Period</th>
+                        <th>Base Wage</th>
+                        {% if evaluee.uses_discounting %}
+                        <th>Present Value</th>
+                        {% endif %}
+                        <th>Total Loss</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scenario in evaluee.earnings_scenarios %}
+                    <tr>
+                        <td>{{ scenario.scenario_name }}</td>
+                        <td>{{ scenario.start_date.strftime('%Y-%m-%d') }} to {{ scenario.end_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ "${:,.2f}".format(scenario.wage_base) }}</td>
+                        {% if evaluee.uses_discounting %}
+                        <td>{{ "${:,.2f}".format(scenario.present_value) if scenario.present_value else 'N/A' }}</td>
+                        {% endif %}
+                        <td>{{ "${:,.2f}".format(scenario.total_loss) if scenario.total_loss else 'N/A' }}</td>
+                        <td>
+                            <div class="btn-group-vertical btn-group-sm d-md-none">
+                                <a href="{{ url_for('earnings.view_scenario', evaluee_id=evaluee_id, scenario_id=scenario.id) }}" 
+                                   class="btn btn-outline-primary">View</a>
+                                <form method="POST" action="{{ url_for('earnings.delete_scenario', evaluee_id=evaluee_id, scenario_id=scenario.id) }}"
+                                      class="d-grid">
+                                    <button type="submit" class="btn btn-outline-danger" 
+                                            onclick="return confirm('Are you sure you want to delete this scenario?')">Delete</button>
+                                </form>
+                            </div>
+                            <div class="btn-group d-none d-md-inline-flex">
+                                <a href="{{ url_for('earnings.view_scenario', evaluee_id=evaluee_id, scenario_id=scenario.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">View</a>
+                                <form method="POST" action="{{ url_for('earnings.delete_scenario', evaluee_id=evaluee_id, scenario_id=scenario.id) }}"
+                                      style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                            onclick="return confirm('Are you sure you want to delete this scenario?')">Delete</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            No earnings scenarios created yet.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Seasonal employment toggle
+    document.getElementById('is_seasonal').addEventListener('change', function() {
+        const seasonalFields = document.getElementById('seasonal_fields');
+        if (this.checked) {
+            seasonalFields.classList.remove('d-none');
+        } else {
+            seasonalFields.classList.add('d-none');
+        }
+    });
+    
+    // Education level toggle
+    document.getElementById('education_level').addEventListener('change', function() {
+        const educationFields = document.getElementById('education_fields');
+        if (this.value) {
+            educationFields.classList.remove('d-none');
+        } else {
+            educationFields.classList.add('d-none');
+        }
+    });
+    
+    // Industry preset selection
+    document.getElementById('industry_preset').addEventListener('change', function() {
+        const growthRateInput = document.getElementById('growth_rate');
+        
+        // Set growth rate based on industry selection
+        switch(this.value) {
+            case 'healthcare':
+                growthRateInput.value = '4.2';
+                break;
+            case 'technology':
+                growthRateInput.value = '5.8';
+                break;
+            case 'manufacturing':
+                growthRateInput.value = '2.1';
+                break;
+            case 'retail':
+                growthRateInput.value = '1.9';
+                break;
+            case 'construction':
+                growthRateInput.value = '3.5';
+                break;
+            case 'education':
+                growthRateInput.value = '2.7';
+                break;
+            case 'finance':
+                growthRateInput.value = '4.0';
+                break;
+        }
+    });
+    
+    // Initialize current year for education completion
+    document.getElementById('education_completion_year').min = new Date().getFullYear();
+    document.getElementById('education_completion_year').value = new Date().getFullYear() + 4; // Default to 4 years from now
+    
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+    
+    // Original script content
+    function exportCurrentScenario() {
+        const selectedScenario = document.querySelector('table tbody tr');
+        if (selectedScenario) {
+            const viewButton = selectedScenario.querySelector('a.btn-outline-primary');
+            const scenarioId = viewButton.href.split('scenario_id=')[1];
+            if (scenarioId) {
+                window.location.href = `{{ url_for('earnings.export_scenario', evaluee_id=evaluee_id) }}?scenario_id=${scenarioId}`;
+            }
+        } else {
+            alert('No scenarios available to export.');
+        }
+    }
+
+    document.getElementById('include_discounting').addEventListener('change', function() {
+        const discountRateInput = document.getElementById('discount_rate');
+        discountRateInput.disabled = !this.checked;
+        if (!this.checked) {
+            discountRateInput.value = '';
+        } else {
+            discountRateInput.value = '3.25';
+        }
+    });
+    
+    // Pre/Post injury toggle function
+    function togglePrePostInjury() {
+        const checkbox = document.getElementById('use_pre_post_injury');
+        const injuryDateSection = document.getElementById('injury_date_section');
+        const traditionalSection = document.getElementById('traditional_wage_section');
+        const prePostSection = document.getElementById('pre_post_wage_section');
+        
+        if (checkbox.checked) {
+            // Show pre/post injury fields
+            injuryDateSection.style.display = 'block';
+            traditionalSection.style.display = 'none';
+            prePostSection.style.display = 'block';
+            
+            // Make pre/post fields required
+            document.getElementById('pre_injury_wage').required = true;
+            document.getElementById('injury_date').required = true;
+            
+            // Make traditional fields not required
+            document.getElementById('wage_base').required = false;
+        } else {
+            // Show traditional fields
+            injuryDateSection.style.display = 'none';
+            traditionalSection.style.display = 'block';
+            prePostSection.style.display = 'none';
+            
+            // Make traditional fields required
+            document.getElementById('wage_base').required = true;
+            
+            // Make pre/post fields not required
+            document.getElementById('pre_injury_wage').required = false;
+            document.getElementById('injury_date').required = false;
+        }
+    }
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+<style>
+    /* Mobile-responsive custom styles */
+    @media (max-width: 767px) {
+        /* Larger touch targets on mobile */
+        .form-control-lg {
+            font-size: 16px; /* Prevents zoom on iOS */
+            padding: 0.75rem 1rem;
+        }
+        
+        /* Better spacing for form elements */
+        .mb-3 {
+            margin-bottom: 1.5rem !important;
+        }
+        
+        /* Responsive table */
+        .table-responsive table {
+            font-size: 0.875rem;
+        }
+        
+        /* Stack table cells on very small screens */
+        @media (max-width: 575px) {
+            .table-responsive table td {
+                display: block;
+                text-align: right;
+                border: none;
+                padding-left: 50%;
+                position: relative;
+            }
+            
+            .table-responsive table td:before {
+                content: attr(data-label);
+                position: absolute;
+                left: 6px;
+                width: 45%;
+                text-align: left;
+                font-weight: bold;
+            }
+        }
+        
+        /* Responsive tabs */
+        .nav-tabs .nav-link {
+            font-size: 0.9rem;
+            padding: 0.75rem 0.5rem;
+        }
+        
+        /* Larger checkboxes for better touch interaction */
+        .form-check-input-lg {
+            margin-top: 0.125rem;
+        }
+    }
+    
+    /* Consistent form control heights */
+    .form-control-lg,
+    .form-select-lg,
+    .input-group-lg > .form-control,
+    .input-group-lg > .form-select,
+    .input-group-lg > .input-group-text,
+    .input-group-lg > .btn {
+        min-height: calc(1.5em + 1rem + 2px);
+    }
+    
+    /* Better visual hierarchy */
+    .form-label {
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Improved focus states for accessibility */
+    .form-control:focus,
+    .form-select:focus,
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+</style>
+
+<script>
+// Automation functions for earnings form
+
+function copyScenarioData(scenarioId) {
+    if (!scenarioId) return;
+    
+    const select = document.getElementById('copy_from_scenario');
+    const option = select.querySelector(`option[value="${scenarioId}"]`);
+    
+    if (option) {
+        // Copy scenario data to form fields
+        document.getElementById('scenario_name').value = option.dataset.name + ' (Copy)';
+        document.getElementById('start_date').value = option.dataset.start;
+        document.getElementById('end_date').value = option.dataset.end;
+        document.getElementById('wage_base').value = option.dataset.wage;
+        document.getElementById('residual_base').value = option.dataset.residual;
+        document.getElementById('growth_rate').value = option.dataset.growth;
+        document.getElementById('adjustment_factor').value = option.dataset.adjustment;
+        
+        // Show success message
+        showAutomationMessage('Scenario data copied successfully!', 'success');
+    }
+}
+
+function applySmartDefaults() {
+    // Apply evaluee-specific defaults
+    {% if defaults %}
+    {% if defaults.work_end_date %}
+    document.getElementById('end_date').value = '{{ defaults.work_end_date }}';
+    {% endif %}
+    {% if defaults.regional_adjustment %}
+    // Apply regional wage adjustment to wage fields
+    const wageField = document.getElementById('wage_base');
+    if (wageField.value) {
+        const adjustedWage = parseFloat(wageField.value) * {{ defaults.regional_adjustment }};
+        wageField.title = `Regional adjustment applied: {{ defaults.regional_adjustment }}x`;
+    }
+    {% endif %}
+    {% endif %}
+}
+
+function showAutomationMessage(message, type = 'info') {
+    // Create and show temporary message
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i class="fas fa-magic me-2"></i>${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insert at top of form
+    const form = document.querySelector('form');
+    form.parentNode.insertBefore(alertDiv, form);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 3000);
+}
+
+// Date validation and auto-population
+function validateDateSequence() {
+    const startDate = document.getElementById('start_date').value;
+    const endDate = document.getElementById('end_date').value;
+    const injuryDate = document.getElementById('injury_date').value;
+    const reportDate = document.getElementById('report_date').value;
+    
+    if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
+        showAutomationMessage('Start date must be before end date', 'warning');
+        return false;
+    }
+    
+    if (injuryDate && reportDate && new Date(injuryDate) >= new Date(reportDate)) {
+        showAutomationMessage('Injury date must be before report date', 'warning');
+        return false;
+    }
+    
+    return true;
+}
+
+// Initialize automation features
+document.addEventListener('DOMContentLoaded', function() {
+    // Set report date to today if not set
+    const reportDateField = document.getElementById('report_date');
+    if (reportDateField && !reportDateField.value) {
+        reportDateField.value = '{{ today }}';
+    }
+    
+    // Apply smart defaults
+    applySmartDefaults();
+    
+    // Add validation listeners
+    document.getElementById('start_date').addEventListener('change', validateDateSequence);
+    document.getElementById('end_date').addEventListener('change', validateDateSequence);
+    document.getElementById('injury_date').addEventListener('change', validateDateSequence);
+    document.getElementById('report_date').addEventListener('change', validateDateSequence);
+    
+    // Wage validation
+    document.getElementById('wage_base').addEventListener('blur', function() {
+        const wage = parseFloat(this.value);
+        if (wage && wage < 1000) {
+            showAutomationMessage('Wage seems low. Did you mean to enter an annual salary?', 'warning');
+        } else if (wage && wage > 500000) {
+            showAutomationMessage('Wage seems high. Please verify this amount.', 'warning');
+        }
+    });
+});
+</script>
+{% endblock %} 

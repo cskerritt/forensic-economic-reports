@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Life Care Plan Evaluees (Simple){% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+                <h1 class="mb-2 mb-md-0"><i class="fas fa-clipboard-list me-2"></i><span class="d-none d-md-inline">Life Care Plan Module</span><span class="d-md-none">Life Care Plan</span></h1>
+                <a href="{{ url_for('life_care_plan.create_evaluee') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus me-2"></i><span class="d-none d-sm-inline">New Evaluee</span><span class="d-sm-none">New</span>
+                </a>
+            </div>
+            
+            {% if full_available %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Full Life Care Plan Functionality Available:</strong> All required packages are installed. 
+                Restart the application to enable advanced calculations, exports, and scenario modeling.
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Life Care Plan Module (Basic Mode):</strong> This is a simplified version of the comprehensive 
+                Life Care Plan functionality from MCP Streamlit. 
+                {% if missing_packages %}
+                <br><strong>Missing packages for full functionality:</strong> {{ missing_packages|join(', ') }}
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% if evaluees %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Life Care Plan Evaluees ({{ evaluees|length }})</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Name</th>
+                                    <th class="d-none d-lg-table-cell">Date of Birth</th>
+                                    <th class="d-none d-lg-table-cell">Date of Injury</th>
+                                    <th class="d-none d-md-table-cell">Primary Diagnosis</th>
+                                    <th class="d-none d-lg-table-cell">Created</th>
+                                    <th class="d-none d-lg-table-cell">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for evaluee in evaluees %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <strong>{{ evaluee.full_name }}</strong>
+                                            <!-- Mobile-only additional info -->
+                                            <div class="d-md-none mt-1">
+                                                {% if evaluee.date_of_birth %}
+                                                <small class="text-muted d-block">DOB: {{ evaluee.date_of_birth.strftime('%m/%d/%Y') }}</small>
+                                                {% endif %}
+                                                {% if evaluee.primary_diagnosis %}
+                                                <small class="text-muted d-block">{{ evaluee.primary_diagnosis[:30] }}{% if evaluee.primary_diagnosis|length > 30 %}...{% endif %}</small>
+                                                {% endif %}
+                                                <small class="text-muted d-block">Created: {{ evaluee.created_at.strftime('%m/%d/%Y') }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="d-none d-lg-table-cell">{{ evaluee.date_of_birth.strftime('%m/%d/%Y') if evaluee.date_of_birth else 'N/A' }}</td>
+                                    <td class="d-none d-lg-table-cell">{{ evaluee.date_of_injury.strftime('%m/%d/%Y') if evaluee.date_of_injury else 'N/A' }}</td>
+                                    <td class="d-none d-md-table-cell">
+                                        {% if evaluee.primary_diagnosis %}
+                                        {{ evaluee.primary_diagnosis[:40] }}{% if evaluee.primary_diagnosis|length > 40 %}...{% endif %}
+                                        {% else %}
+                                        <span class="text-muted">Not specified</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="d-none d-lg-table-cell">{{ evaluee.created_at.strftime('%m/%d/%Y') }}</td>
+                                    <td class="d-none d-lg-table-cell">
+                                        <span class="text-muted">
+                                            <small>Full functionality available with complete installation</small>
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                    <h3 class="text-muted">No Life Care Plan Evaluees Yet</h3>
+                    <p class="text-muted mb-4">Create your first life care plan evaluee to get started.</p>
+                    <a href="{{ url_for('life_care_plan.create_evaluee') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Create First Evaluee
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">About Life Care Plan Module</h5>
+                </div>
+                <div class="card-body">
+                    <p>This module provides comprehensive life care planning capabilities adapted from the MCP Streamlit application. Features include:</p>
+                    <div class="row">
+                        <div class="col-12 col-md-6">
+                            <ul>
+                                <li><strong>Evaluee Management:</strong> Complete patient profiles</li>
+                                <li><strong>Service Planning:</strong> Medical, therapy, equipment services</li>
+                                <li><strong>Cost Calculations:</strong> Present value and inflation adjustments</li>
+                                <li><strong>Multiple Scenarios:</strong> Conservative, moderate, optimistic</li>
+                            </ul>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <ul>
+                                <li><strong>Professional Reports:</strong> Excel and Word exports</li>
+                                <li><strong>Economic Analysis:</strong> Comprehensive cost projections</li>
+                                <li><strong>Equipment Replacement:</strong> Automatic replacement cycles</li>
+                                <li><strong>Category Organization:</strong> Medical, therapy, medications, etc.</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Note:</strong> Full functionality requires additional Python packages: 
+                        pandas, openpyxl, python-docx, matplotlib. This simplified version provides basic evaluee management.
+                        <br>
+                        <a href="{{ url_for('life_care_plan.status') }}" class="btn btn-sm btn-outline-primary mt-2">
+                            <i class="fas fa-cogs me-2"></i>Check Package Status & Installation Instructions
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

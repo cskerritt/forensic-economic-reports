@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Manage Medical Costs</h2>
+    <h4 class="text-muted">{{ scenario.scenario_name }} - {{ evaluee.first_name }} {{ evaluee.last_name }}</h4>
+    
+    <!-- Quick Guide Card -->
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Quick Guide: Adding Medical Costs</h5>
+                <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#guideContent">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+        </div>
+        <div class="collapse" id="guideContent">
+            <div class="card-body">
+                <p>Add each medical cost item separately. Here's what each field means:</p>
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul>
+                            <li><strong>Item Label:</strong> Name of the medical service/item (e.g., "Physical Therapy")</li>
+                            <li><strong>Category:</strong> Type of medical cost for grouping in reports</li>
+                            <li><strong>Annual Cost:</strong> How much this costs per year</li>
+                            <li><strong>Growth Rate:</strong> Optional - how fast this specific cost increases (leave blank to use scenario default)</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul>
+                            <li><strong>Start Year:</strong> When this expense begins (usually year 1)</li>
+                            <li><strong>Duration:</strong> How many years this cost continues (leave blank for lifetime)</li>
+                            <li><strong>Interval:</strong> How often the cost occurs (e.g., 1 = yearly, 2 = every other year)</li>
+                            <li><strong>One-time cost:</strong> Check for costs that only happen once</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Add New Medical Cost</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('healthcare.add_item', evaluee_id=evaluee.id, scenario_id=scenario.id) }}">
+                        <!-- Basic Info Section -->
+                        <div class="mb-3">
+                            <label for="label" class="form-label">Item Label <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="label" name="label" 
+                                   placeholder="e.g., Physical Therapy, Medication, etc." required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="category" class="form-label">Life Care Plan Category <span class="text-danger">*</span></label>
+                            <select class="form-select" id="category" name="category" onchange="updateCategoryRate()">
+                                <option value="">Select a category</option>
+                                {% for category in medical_categories %}
+                                <option value="{{ category.lcp_category }}">{{ category.lcp_category }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Standard Life Care Plan categories with predefined growth rates</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="annual_cost" class="form-label">Annual Cost <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" step="0.01" min="0" class="form-control" id="annual_cost" name="annual_cost" 
+                                       placeholder="1000.00" required>
+                            </div>
+                        </div>
+                        
+                        <!-- Cost Pattern Section -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                Cost Pattern
+                                <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" 
+                                   title="When and how often this cost occurs"></i>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" class="form-check-input" id="is_one_time" name="is_one_time">
+                                    <label class="form-check-label" for="is_one_time">
+                                        This is a one-time cost
+                                    </label>
+                                </div>
+                                
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <label for="start_year" class="form-label">Start Year</label>
+                                        <input type="number" min="1" class="form-control" id="start_year" name="start_year" 
+                                               value="1" title="When this cost begins (year 1 = now)">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="duration_years" class="form-label">Duration</label>
+                                        <input type="number" min="1" class="form-control" id="duration_years" name="duration_years" 
+                                               placeholder="Lifetime" title="Leave blank for lifetime">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="interval_years" class="form-label">Interval</label>
+                                        <input type="number" min="1" class="form-control" id="interval_years" name="interval_years" 
+                                               value="1" title="1 = every year, 2 = every other year, etc.">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Optional Settings Toggle -->
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-secondary w-100" 
+                                    data-bs-toggle="collapse" data-bs-target="#optionalSettings">
+                                Show Optional Settings <i class="fas fa-chevron-down"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Optional Settings (collapsed by default) -->
+                        <div class="collapse mb-3" id="optionalSettings">
+                            <div class="card">
+                                <div class="card-header">
+                                    Optional Settings
+                                </div>
+                                <div class="card-body">
+                                    <!-- Growth Rate Setting -->
+                                    <div class="mb-3">
+                                        <label for="growth_rate" class="form-label">
+                                            Growth Rate Settings
+                                            <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" 
+                                               title="Select how the growth rate should be determined"></i>
+                                        </label>
+                                        <div class="form-check mb-2">
+                                            <input type="checkbox" class="form-check-input" id="use_category_rate" name="use_category_rate" checked>
+                                            <label class="form-check-label" for="use_category_rate">
+                                                Use category growth rate when available
+                                            </label>
+                                            <div id="category_rate_info" class="form-text text-success">
+                                                <span id="selected_category_rate">No category selected</span>
+                                            </div>
+                                        </div>
+                                        <div class="input-group">
+                                            <input type="number" step="0.001" class="form-control" id="growth_rate" name="growth_rate" 
+                                                   placeholder="Custom rate (if needed)">
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                        <div class="form-text">If no custom rate and no category rate, uses scenario rate: {{ "%.2f"|format(scenario.growth_rate_custom * 100) }}%</div>
+                                    </div>
+                                    
+                                    <!-- Age Range Settings -->
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            Age Range (Optional)
+                                            <i class="fas fa-info-circle text-primary" data-bs-toggle="tooltip" 
+                                               title="Limit costs to a specific age range"></i>
+                                        </label>
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <div class="input-group">
+                                                    <span class="input-group-text">From Age</span>
+                                                    <input type="number" step="0.1" class="form-control" id="age_initiated" name="age_initiated">
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="input-group">
+                                                    <span class="input-group-text">To Age</span>
+                                                    <input type="number" step="0.1" class="form-control" id="age_through" name="age_through">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="form-text">Leave blank to use full lifespan</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Add Medical Cost
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Your Medical Costs ({{ scenario.medical_items|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if scenario.medical_items %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Category</th>
+                                        <th>Annual Cost</th>
+                                        <th>When</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in scenario.medical_items %}
+                                        <tr>
+                                            <td>{{ item.label }}</td>
+                                            <td>{{ item.category }}</td>
+                                            <td>${{ "%.2f"|format(item.annual_cost|float) }}</td>
+                                            <td>
+                                                {% if item.is_one_time %}
+                                                    One-time in year {{ item.start_year }}
+                                                {% else %}
+                                                    Every {{ item.interval_years }} year{{ "s" if item.interval_years != 1 }}
+                                                    {% if item.duration_years %}
+                                                        for {{ item.duration_years }} years
+                                                    {% endif %}
+                                                {% endif %}
+                                                
+                                                {% if item.age_initiated or item.age_through %}
+                                                    <br><small>Ages {{ item.age_initiated|default('start') }} to {{ item.age_through|default('end') }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group">
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                            onclick="populateEditForm('{{ item.id }}', '{{ item.label|replace("'", "\\'") }}', '{{ item.category }}', 
+                                                                                    '{{ item.annual_cost }}', '{{ item.is_one_time }}', 
+                                                                                    '{{ item.growth_rate or "" }}', '{{ item.age_initiated or "" }}', 
+                                                                                    '{{ item.age_through or "" }}', '{{ item.start_year or 1 }}',
+                                                                                    '{{ item.duration_years or "" }}', '{{ item.interval_years or 1 }}')">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <form method="POST" action="{{ url_for('healthcare.delete_item', evaluee_id=evaluee.id, scenario_id=scenario.id, item_id=item.id) }}" style="display: inline;">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                                onclick="return confirm('Are you sure you want to delete this item?')">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            No medical costs have been added yet. Use the form on the left to add your first medical cost.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <a href="{{ url_for('healthcare.view_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" 
+                   class="btn btn-primary">
+                    <i class="fas fa-chart-bar"></i> View Cost Projections
+                </a>
+                <a href="{{ url_for('healthcare.edit_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" 
+                   class="btn btn-secondary">
+                    <i class="fas fa-cog"></i> Edit Scenario Settings
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Advanced Options Removed/Hidden by Default -->
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Toggle the guide card
+    document.querySelector('[data-bs-target="#guideContent"]').addEventListener('click', function() {
+        const icon = this.querySelector('i');
+        icon.classList.toggle('fa-chevron-down');
+        icon.classList.toggle('fa-chevron-up');
+    });
+    
+    // Toggle optional settings
+    document.querySelector('[data-bs-target="#optionalSettings"]').addEventListener('click', function() {
+        const icon = this.querySelector('i');
+        icon.classList.toggle('fa-chevron-down');
+        icon.classList.toggle('fa-chevron-up');
+    });
+    
+    // Toggle one-time cost behavior
+    document.getElementById('is_one_time').addEventListener('change', function() {
+        const durationField = document.getElementById('duration_years');
+        const intervalField = document.getElementById('interval_years');
+        
+        if (this.checked) {
+            durationField.disabled = true;
+            durationField.placeholder = "N/A for one-time";
+            intervalField.disabled = true;
+            intervalField.placeholder = "N/A for one-time";
+        } else {
+            durationField.disabled = false;
+            durationField.placeholder = "Lifetime";
+            intervalField.disabled = false;
+            intervalField.value = "1";
+        }
+    });
+    
+    // Function to update category growth rate when a category is selected
+    function updateCategoryRate() {
+        const categorySelect = document.getElementById('category');
+        const selectedCategory = categorySelect.value;
+        const useCategoryRate = document.getElementById('use_category_rate');
+        const categoryRateInfo = document.getElementById('category_rate_info');
+        const selectedCategoryRate = document.getElementById('selected_category_rate');
+        
+        if (!selectedCategory) {
+            selectedCategoryRate.textContent = 'No category selected';
+            categoryRateInfo.classList.remove('text-success');
+            categoryRateInfo.classList.add('text-muted');
+            return;
+        }
+        
+        // Fetch the growth rate for the selected category
+        fetch(`/api/medical-category/${selectedCategory}/growth-rate`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const growthRate = data.growth_rate.toFixed(1);
+                    selectedCategoryRate.textContent = `Category "${selectedCategory}" growth rate: ${growthRate}%`;
+                    categoryRateInfo.classList.remove('text-muted');
+                    categoryRateInfo.classList.add('text-success');
+                    
+                    // If using category rate, disable custom growth rate input
+                    const growthRateInput = document.getElementById('growth_rate');
+                    if (useCategoryRate.checked) {
+                        growthRateInput.placeholder = `Using ${growthRate}% from category`;
+                    }
+                } else {
+                    selectedCategoryRate.textContent = 'No growth rate set for this category';
+                    categoryRateInfo.classList.remove('text-success');
+                    categoryRateInfo.classList.add('text-muted');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching category growth rate:', error);
+                selectedCategoryRate.textContent = 'Error fetching growth rate';
+                categoryRateInfo.classList.remove('text-success');
+                categoryRateInfo.classList.add('text-danger');
+            });
+    }
+    
+    // Update growth rate input when "use category rate" checkbox changes
+    document.getElementById('use_category_rate').addEventListener('change', function() {
+        const growthRateInput = document.getElementById('growth_rate');
+        
+        if (this.checked) {
+            growthRateInput.disabled = true;
+            updateCategoryRate(); // Refresh category rate display
+        } else {
+            growthRateInput.disabled = false;
+            growthRateInput.placeholder = "Enter custom rate";
+        }
+    });
+    
+    // Function to populate the form for editing (placeholder for future edit functionality)
+    function populateEditForm(id, label, category, cost, isOneTime, growthRate, ageInitiated, ageThrough, startYear, durationYears, intervalYears) {
+        // Scroll to the form
+        document.querySelector('.card-header:contains("Add New")').scrollIntoView();
+        
+        // Populate form fields
+        document.getElementById('label').value = label;
+        document.getElementById('category').value = category;
+        document.getElementById('annual_cost').value = cost;
+        document.getElementById('is_one_time').checked = (isOneTime === 'True');
+        document.getElementById('growth_rate').value = growthRate;
+        document.getElementById('age_initiated').value = ageInitiated;
+        document.getElementById('age_through').value = ageThrough;
+        document.getElementById('start_year').value = startYear;
+        document.getElementById('duration_years').value = durationYears;
+        document.getElementById('interval_years').value = intervalYears;
+        
+        // Trigger one-time cost behavior
+        document.getElementById('is_one_time').dispatchEvent(new Event('change'));
+        
+        // Show optional settings if any of those fields are populated
+        if (growthRate || ageInitiated || ageThrough) {
+            const optionalSettings = document.getElementById('optionalSettings');
+            if (!optionalSettings.classList.contains('show')) {
+                document.querySelector('[data-bs-target="#optionalSettings"]').click();
+            }
+        }
+        
+        // Change button text
+        document.querySelector('button[type="submit"]').innerHTML = '<i class="fas fa-save"></i> Update Medical Cost';
+    }
+    
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+    
+    // Initialize form state on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize the category rate if a category is selected
+        if (document.getElementById('category').value) {
+            updateCategoryRate();
+        }
+        
+        // Trigger use_category_rate change
+        document.getElementById('use_category_rate').dispatchEvent(new Event('change'));
+        
+        // Trigger one-time cost change
+        document.getElementById('is_one_time').dispatchEvent(new Event('change'));
+    });
+</script>
+{% endblock %} 

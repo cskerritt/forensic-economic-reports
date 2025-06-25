@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}Pension Analysis - {{ evaluee.first_name }} {{ evaluee.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Pension Analysis - {{ evaluee.first_name }} {{ evaluee.last_name }}</h2>
+    
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Create New Pension Scenario</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('pension.create_scenario', evaluee_id=evaluee.id) }}" id="pensionForm">
+                        <div class="mb-3">
+                            <label for="scenario_name" class="form-label">Scenario Name</label>
+                            <input type="text" class="form-control" id="scenario_name" name="scenario_name" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="calculation_method" class="form-label">Calculation Method</label>
+                            <select class="form-select" id="calculation_method" name="calculation_method" required>
+                                <option value="">Select a method</option>
+                                <option value="contributions">Lost Contributions</option>
+                                <option value="payments">Lost Pension Payments</option>
+                            </select>
+                            <div class="form-text">Choose between calculating lost contributions or lost pension payments</div>
+                        </div>
+                        
+                        <!-- Common Fields -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="growth_rate" class="form-label">Annual Growth Rate (%)</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="growth_rate" name="growth_rate" 
+                                           step="0.001" value="2.0" required>
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="discount_rate" class="form-label">Discount Rate (%)</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="discount_rate" name="discount_rate" 
+                                           step="0.001" value="4.0" required>
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Lost Contributions Fields -->
+                        <div id="contributionsFields" style="display: none;">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="years_to_retirement" class="form-label">Years to Retirement</label>
+                                    <input type="number" class="form-control" id="years_to_retirement" 
+                                           name="years_to_retirement" min="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="annual_contribution" class="form-label">Annual Contribution ($)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" id="annual_contribution" 
+                                               name="annual_contribution" step="0.01">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Lost Pension Payments Fields -->
+                        <div id="paymentsFields" style="display: none;">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="retirement_age" class="form-label">Retirement Age</label>
+                                    <input type="number" class="form-control" id="retirement_age" 
+                                           name="retirement_age" min="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="life_expectancy" class="form-label">Life Expectancy</label>
+                                    <input type="number" class="form-control" id="life_expectancy" 
+                                           name="life_expectancy" min="1">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="annual_pension_benefit" class="form-label">Annual Pension Benefit ($)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="annual_pension_benefit" 
+                                           name="annual_pension_benefit" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h4>Advanced Options</h4>
+                            </div>
+                            <div class="card-body">
+                                <ul class="nav nav-tabs" id="advancedTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="pension-type-tab" data-bs-toggle="tab" data-bs-target="#pension-type" type="button" role="tab" aria-controls="pension-type" aria-selected="true">Pension Type</button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="social-security-tab" data-bs-toggle="tab" data-bs-target="#social-security" type="button" role="tab" aria-controls="social-security" aria-selected="false">Social Security</button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="early-retirement-tab" data-bs-toggle="tab" data-bs-target="#early-retirement" type="button" role="tab" aria-controls="early-retirement" aria-selected="false">Early Retirement</button>
+                                    </li>
+                                </ul>
+                                
+                                <div class="tab-content p-3 border border-top-0 rounded-bottom" id="advancedTabsContent">
+                                    <!-- Pension Type Tab -->
+                                    <div class="tab-pane fade show active" id="pension-type" role="tabpanel" aria-labelledby="pension-type-tab">
+                                        <div class="mb-3">
+                                            <label for="pension_type" class="form-label">Pension Type</label>
+                                            <select class="form-select" id="pension_type" name="pension_type">
+                                                <option value="defined_benefit">Defined Benefit</option>
+                                                <option value="defined_contribution">Defined Contribution</option>
+                                                <option value="hybrid">Hybrid</option>
+                                            </select>
+                                            <div class="form-text">Type of pension plan</div>
+                                        </div>
+                                        
+                                        <div id="defined_contribution_fields" class="d-none">
+                                            <div class="mb-3">
+                                                <label for="employer_match_percentage" class="form-label">Employer Match (%)</label>
+                                                <div class="input-group">
+                                                    <input type="number" step="0.001" class="form-control" id="employer_match_percentage" name="employer_match_percentage" value="100">
+                                                    <span class="input-group-text">%</span>
+                                                </div>
+                                                <div class="form-text">Percentage of employee contribution matched by employer</div>
+                                            </div>
+                                            
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="vesting_period" class="form-label">Vesting Period (Years)</label>
+                                                        <input type="number" class="form-control" id="vesting_period" name="vesting_period" value="5">
+                                                        <div class="form-text">Years until fully vested</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="vesting_percentage" class="form-label">Current Vesting (%)</label>
+                                                        <div class="input-group">
+                                                            <input type="number" step="0.001" class="form-control" id="vesting_percentage" name="vesting_percentage" value="100">
+                                                            <span class="input-group-text">%</span>
+                                                        </div>
+                                                        <div class="form-text">Current vesting percentage</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Social Security Tab -->
+                                    <div class="tab-pane fade" id="social-security" role="tabpanel" aria-labelledby="social-security-tab">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="include_social_security" name="include_social_security">
+                                            <label class="form-check-label" for="include_social_security">
+                                                Include Social Security Benefits
+                                            </label>
+                                        </div>
+                                        
+                                        <div id="social_security_fields" class="d-none">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="social_security_start_age" class="form-label">Start Age</label>
+                                                        <input type="number" class="form-control" id="social_security_start_age" name="social_security_start_age" value="67">
+                                                        <div class="form-text">Age to start receiving Social Security benefits</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="social_security_benefit" class="form-label">Annual Benefit ($)</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text">$</span>
+                                                            <input type="number" step="0.01" class="form-control" id="social_security_benefit" name="social_security_benefit">
+                                                        </div>
+                                                        <div class="form-text">Estimated annual Social Security benefit</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Early Retirement Tab -->
+                                    <div class="tab-pane fade" id="early-retirement" role="tabpanel" aria-labelledby="early-retirement-tab">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="early_retirement_age" class="form-label">Early Retirement Age</label>
+                                                    <input type="number" class="form-control" id="early_retirement_age" name="early_retirement_age">
+                                                    <div class="form-text">Age for early retirement (leave blank if not applicable)</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="early_retirement_penalty" class="form-label">Annual Penalty (%)</label>
+                                                    <div class="input-group">
+                                                        <input type="number" step="0.001" class="form-control" id="early_retirement_penalty" name="early_retirement_penalty" value="5">
+                                                        <span class="input-group-text">%</span>
+                                                    </div>
+                                                    <div class="form-text">Percentage reduction per year of early retirement</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Create Scenario</button>
+                        <a href="{{ url_for('evaluee.view', evaluee_id=evaluee.id) }}" class="btn btn-secondary">
+                            Back to Evaluee
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Existing Scenarios</h4>
+                </div>
+                <div class="card-body">
+                    {% if scenarios %}
+                        <div class="list-group">
+                            {% for scenario in scenarios %}
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <a href="{{ url_for('pension.view_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" 
+                                               class="text-decoration-none">
+                                                {{ scenario.scenario_name }}
+                                                <small class="text-muted d-block">
+                                                    Method: {{ scenario.calculation_method|title }}
+                                                    <br>
+                                                    PV: ${{ "{:,.2f}".format(scenario.present_value) }}
+                                                </small>
+                                            </a>
+                                        </div>
+                                        <form action="{{ url_for('pension.delete_scenario', evaluee_id=evaluee.id, scenario_id=scenario.id) }}" 
+                                              method="POST" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-danger" 
+                                                    onclick="return confirm('Are you sure you want to delete this scenario?')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No pension scenarios created yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    // Toggle calculation method fields
+    document.getElementById('calculation_method').addEventListener('change', function() {
+        const contributionsFields = document.getElementById('contributionsFields');
+        const paymentsFields = document.getElementById('paymentsFields');
+        
+        if (this.value === 'contributions') {
+            contributionsFields.style.display = 'block';
+            paymentsFields.style.display = 'none';
+        } else if (this.value === 'payments') {
+            contributionsFields.style.display = 'none';
+            paymentsFields.style.display = 'block';
+        } else {
+            contributionsFields.style.display = 'none';
+            paymentsFields.style.display = 'none';
+        }
+    });
+    
+    // Toggle pension type fields
+    document.getElementById('pension_type').addEventListener('change', function() {
+        const definedContributionFields = document.getElementById('defined_contribution_fields');
+        
+        if (this.value === 'defined_contribution' || this.value === 'hybrid') {
+            definedContributionFields.classList.remove('d-none');
+        } else {
+            definedContributionFields.classList.add('d-none');
+        }
+    });
+    
+    // Toggle Social Security fields
+    document.getElementById('include_social_security').addEventListener('change', function() {
+        const socialSecurityFields = document.getElementById('social_security_fields');
+        
+        if (this.checked) {
+            socialSecurityFields.classList.remove('d-none');
+        } else {
+            socialSecurityFields.classList.add('d-none');
+        }
+    });
+    
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+</script>
+{% endblock %}
+{% endblock %} 

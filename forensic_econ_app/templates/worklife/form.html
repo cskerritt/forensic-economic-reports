@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Worklife Factor{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1>Worklife Factor Calculator</h1>
+        <p class="lead">Calculate the worklife factor based on work life expectancy and years to final separation.</p>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Current Values</h5>
+                <p class="card-text">
+                    Gender: {{ evaluee.gender }}<br>
+                    Education Level: {{ evaluee.education_level }}<br>
+                    Age at Injury: {{ age_at_injury|float|round(2) if age_at_injury else 'Not set' }}<br>
+                    Work Life Expectancy: {{ evaluee.work_life_expectancy }} years<br>
+                    Years to Final Separation: {{ evaluee.years_to_final_separation }} years<br>
+                    {% if evaluee.worklife_factor %}
+                    Current Worklife Factor: {{ "%.4f"|format(evaluee.worklife_factor) }}
+                    {% if evaluee.worklife_manual_override %}
+                    <span class="badge bg-warning">Manual Override</span>
+                    {% endif %}
+                    {% else %}
+                    No worklife factor calculated yet.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Table Lookup Values</h5>
+                <p class="card-text">
+                    {% if wle_median is not none %}
+                    WLE Median: {{ wle_median }} years<br>
+                    {% else %}
+                    WLE Median: Not found in table<br>
+                    {% endif %}
+
+                    {% if yfs_median is not none %}
+                    YFS Median: {{ yfs_median }} years<br>
+                    {% else %}
+                    YFS Median: Not found in table<br>
+                    {% endif %}
+
+                    {% if wle_median is not none and yfs_median is not none %}
+                    Calculated Worklife Factor: {{ "%.4f"|format(wle_median / yfs_median) }}
+                    {% endif %}
+                </p>
+
+                <form method="POST" action="{{ url_for('worklife.lookup', evaluee_id=evaluee_id) }}">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-table"></i> Use Table Values
+                    </button>
+                    <small class="form-text text-muted d-block mt-2">
+                        This will look up and apply the appropriate worklife values from the tables based on gender, education level, and age at injury.
+                    </small>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Manual Entry</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="manual_override" name="manual_override"
+                               {% if evaluee.worklife_manual_override %}checked{% endif %}>
+                        <label class="form-check-label" for="manual_override">
+                            <strong>Enable Manual Override</strong> - Use custom values instead of table lookups
+                        </label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="work_life_expectancy" class="form-label">Work Life Expectancy (years)</label>
+                        <input type="number" step="0.01" class="form-control" id="work_life_expectancy"
+                               name="work_life_expectancy" value="{{ evaluee.work_life_expectancy or '' }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="years_to_final_separation" class="form-label">Years to Final Separation</label>
+                        <input type="number" step="0.01" class="form-control" id="years_to_final_separation"
+                               name="years_to_final_separation" value="{{ evaluee.years_to_final_separation or '' }}" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Calculate Factor</button>
+                    <a href="{{ url_for('evaluee.view', evaluee_id=evaluee_id) }}" class="btn btn-secondary">Cancel</a>
+
+                    <!-- Medical Cost Projections removed -->
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Auto-populate fields with table values when available
+    document.addEventListener('DOMContentLoaded', function() {
+        const wleInput = document.getElementById('work_life_expectancy');
+        const yfsInput = document.getElementById('years_to_final_separation');
+        const wleMedian = {{ wle_median or 'null' }};
+        const yfsMedian = {{ yfs_median or 'null' }};
+        const manualOverride = document.getElementById('manual_override');
+
+        // If no current values and table values are available, pre-fill the inputs
+        if ((!wleInput.value || wleInput.value === '0.00') && wleMedian !== null) {
+            wleInput.value = wleMedian;
+        }
+
+        if ((!yfsInput.value || yfsInput.value === '0.00') && yfsMedian !== null) {
+            yfsInput.value = yfsMedian;
+        }
+
+        // Add visual indication when manual override is enabled
+        manualOverride.addEventListener('change', function() {
+            const formGroups = document.querySelectorAll('.mb-3:not(.form-check)');
+            if (this.checked) {
+                formGroups.forEach(group => {
+                    group.classList.add('border-start', 'border-warning', 'border-4', 'ps-3');
+                });
+            } else {
+                formGroups.forEach(group => {
+                    group.classList.remove('border-start', 'border-warning', 'border-4', 'ps-3');
+                });
+            }
+        });
+
+        // Trigger the change event to set initial state
+        const event = new Event('change');
+        manualOverride.dispatchEvent(event);
+
+        // Add a button to populate fields with table values
+        const useTableValuesBtn = document.createElement('button');
+        useTableValuesBtn.type = 'button';
+        useTableValuesBtn.className = 'btn btn-outline-info mt-2';
+        useTableValuesBtn.innerHTML = '<i class="fas fa-sync"></i> Apply Table Values to Form';
+        useTableValuesBtn.addEventListener('click', function() {
+            if (wleMedian !== null) {
+                wleInput.value = wleMedian;
+            }
+            if (yfsMedian !== null) {
+                yfsInput.value = yfsMedian;
+            }
+        });
+
+        // Add the button after the manual override checkbox
+        const manualOverrideContainer = document.querySelector('.form-check:first-of-type');
+        if (manualOverrideContainer && wleMedian !== null && yfsMedian !== null) {
+            manualOverrideContainer.appendChild(useTableValuesBtn);
+        }
+
+        // Medical Cost Projections removed
+    });
+</script>
+{% endblock %}

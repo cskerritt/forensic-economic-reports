@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Create New User{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1>Create New User</h1>
+            <p class="lead">Add a new user to the system.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">User Information</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="is_admin" name="is_admin">
+                            <label class="form-check-label" for="is_admin">Admin User</label>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin.users') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Create User</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Help</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Username</h6>
+                    <p>The username must be unique and will be used to log in to the system.</p>
+                    
+                    <h6>Email</h6>
+                    <p>The email must be unique and will be used for password recovery.</p>
+                    
+                    <h6>Password</h6>
+                    <p>Choose a strong password with at least 8 characters, including uppercase and lowercase letters, numbers, and special characters.</p>
+                    
+                    <h6>Admin User</h6>
+                    <p>Admin users have access to the admin dashboard and can manage other users.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -154,12 +154,15 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div class="d-flex gap-3 align-items-center mb-3">
-                        <button class="btn btn-success btn-lg" id="generateBtn" onclick="generateReport()" disabled>
-                            <i class="bi bi-file-earmark-plus"></i> Generate Professional Report
+                    <div class="d-flex gap-2 align-items-center mb-3">
+                        <button class="btn btn-success" id="generateBtn" onclick="generateReport()" disabled>
+                            <i class="bi bi-file-earmark-plus"></i> Generate Report
+                        </button>
+                        <button class="btn btn-warning" id="generateWordBtn" onclick="generateWordReport()" disabled>
+                            <i class="bi bi-file-earmark-word"></i> Generate Word
                         </button>
                         <button class="btn btn-primary" id="downloadBtn" onclick="downloadReport()" disabled>
-                            <i class="bi bi-download"></i> Download Report
+                            <i class="bi bi-download"></i> Download
                         </button>
                         <div class="flex-grow-1">
                             <div class="progress" id="progressBar" style="display: none;">
@@ -291,9 +294,11 @@ document.getElementById('evalueeSelect').addEventListener('change', function() {
     if (evalueeId) {
         loadEvalueeDetails(evalueeId);
         document.getElementById('generateBtn').disabled = false;
+        document.getElementById('generateWordBtn').disabled = false;
     } else {
         document.getElementById('evalueeDetailsCard').style.display = 'none';
         document.getElementById('generateBtn').disabled = true;
+        document.getElementById('generateWordBtn').disabled = true;
     }
 });
 
@@ -361,8 +366,9 @@ function generateReport() {
         return;
     }
 
-    // Disable button and show progress
+    // Disable buttons and show progress
     document.getElementById('generateBtn').disabled = true;
+    document.getElementById('generateWordBtn').disabled = true;
     document.getElementById('downloadBtn').disabled = true;
     document.getElementById('progressBar').style.display = 'block';
     updateStatus('Generating professional forensic economic report using integrated data...');
@@ -390,6 +396,44 @@ function generateReport() {
     });
 }
 
+function generateWordReport() {
+    const evalueeId = document.getElementById('evalueeSelect').value;
+    if (!evalueeId) {
+        alert('Please select an evaluee first');
+        return;
+    }
+
+    // Disable buttons and show progress
+    document.getElementById('generateBtn').disabled = true;
+    document.getElementById('generateWordBtn').disabled = true;
+    document.getElementById('downloadBtn').disabled = true;
+    document.getElementById('progressBar').style.display = 'block';
+    updateStatus('Generating professional Word document with complete data integration...');
+
+    fetch('/forensic-reports/api/generate-word-report', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({evaluee_id: parseInt(evalueeId)})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentSessionId = data.session_id;
+            updateStatus('Professional Word report generation started - this may take a few moments...');
+            checkReportStatus();
+        } else {
+            updateStatus('Error: ' + data.error, 'error');
+            resetGenerateButton();
+        }
+    })
+    .catch(error => {
+        updateStatus('Error generating Word report: ' + error, 'error');
+        resetGenerateButton();
+    });
+}
+
 function checkReportStatus() {
     if (!currentSessionId) return;
 
@@ -405,6 +449,7 @@ function checkReportStatus() {
                     updateStatus(`Report generated successfully (${data.length.toLocaleString()} characters) - Ready for download`);
                     
                     document.getElementById('generateBtn').disabled = false;
+                    document.getElementById('generateWordBtn').disabled = false;
                     document.getElementById('downloadBtn').disabled = false;
                     document.getElementById('progressBar').style.display = 'none';
                     
@@ -458,6 +503,7 @@ function searchReport() {
 
 function resetGenerateButton() {
     document.getElementById('generateBtn').disabled = false;
+    document.getElementById('generateWordBtn').disabled = false;
     document.getElementById('progressBar').style.display = 'none';
 }
 

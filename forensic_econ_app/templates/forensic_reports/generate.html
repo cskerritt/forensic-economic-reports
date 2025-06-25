@@ -103,14 +103,19 @@
                 </div>
                 <div class="card-body">
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <button class="btn btn-success btn-lg w-100" id="generateBtn" onclick="generateReportDirect()">
-                                <i class="bi bi-file-earmark-plus"></i> Generate Professional Report
+                                <i class="bi bi-file-earmark-plus"></i> Generate Report
                             </button>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                            <button class="btn btn-warning btn-lg w-100" id="generateWordBtn" onclick="generateWordReport()">
+                                <i class="bi bi-file-earmark-word"></i> Generate Word
+                            </button>
+                        </div>
+                        <div class="col-md-4">
                             <button class="btn btn-primary btn-lg w-100" id="downloadBtn" onclick="downloadReport()" disabled>
-                                <i class="bi bi-download"></i> Download Report
+                                <i class="bi bi-download"></i> Download
                             </button>
                         </div>
                     </div>
@@ -377,6 +382,38 @@ function checkReportStatus() {
         });
 }
 
+function generateWordReport() {
+    // Disable buttons and show progress
+    document.getElementById('generateBtn').disabled = true;
+    document.getElementById('generateWordBtn').disabled = true;
+    document.getElementById('downloadBtn').disabled = true;
+    document.getElementById('progressBar').style.display = 'block';
+    updateStatus('Generating professional Word document with complete data integration...');
+
+    fetch('/forensic-reports/api/generate-word-report', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({evaluee_id: evalueeId})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentSessionId = data.session_id;
+            updateStatus('Professional Word report generation started - this may take a few moments...');
+            checkReportStatus();
+        } else {
+            updateStatus('Error: ' + data.error, 'error');
+            resetGenerateButton();
+        }
+    })
+    .catch(error => {
+        updateStatus('Error generating Word report: ' + error, 'error');
+        resetGenerateButton();
+    });
+}
+
 function downloadReport() {
     if (!currentSessionId) {
         alert('No report available to download');
@@ -404,6 +441,7 @@ function searchReport() {
 
 function resetGenerateButton() {
     document.getElementById('generateBtn').disabled = false;
+    document.getElementById('generateWordBtn').disabled = false;
     document.getElementById('progressBar').style.display = 'none';
 }
 

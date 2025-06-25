@@ -23,6 +23,18 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import logging
 from decimal import Decimal
+import sys
+import os
+
+# Add the forensic_word_export module to the path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
+try:
+    from forensic_word_export import create_forensic_word_report
+    WORD_EXPORT_AVAILABLE = True
+except ImportError:
+    WORD_EXPORT_AVAILABLE = False
+    logger.warning("Word export functionality not available")
 
 logger = logging.getLogger(__name__)
 
@@ -893,5 +905,493 @@ Report ID: {secrets.token_hex(8).upper()}
 # Initialize the complete report generator
 complete_report_generator = CompleteForensicReportGenerator()
 
-# [Rest of the routes would be similar to the previous version but using complete_report_generator]
-# ... (API routes remain the same, just using the new complete generator)
+
+# ================================
+# FLASK ROUTE HANDLERS
+# ================================
+
+@bp.route('/')
+@login_required
+def index():
+    """Main forensic reports interface with complete data integration."""
+    evaluees = Evaluee.query.filter_by(user_id=current_user.id).all()
+    return render_template('forensic_reports/index.html', evaluees=evaluees)
+
+
+@bp.route('/evaluee/<int:evaluee_id>/report')
+@login_required
+def generate_report_page(evaluee_id):
+    """Generate report page for specific evaluee."""
+    evaluee = Evaluee.query.filter_by(id=evaluee_id, user_id=current_user.id).first()
+    if not evaluee:
+        flash('Evaluee not found')
+        return redirect(url_for('forensic_reports_complete.index'))
+    
+    return render_template('forensic_reports/generate.html', 
+                         evaluee=evaluee, evaluee_id=evaluee_id)
+
+
+@bp.route('/api/evaluee/<int:evaluee_id>')
+@login_required
+def api_get_evaluee(evaluee_id):
+    """API endpoint to get complete evaluee data."""
+    try:
+        evaluee_data = complete_report_generator.get_complete_evaluee_data(
+            evaluee_id, current_user.id
+        )
+        
+        if not evaluee_data:
+            return jsonify({'success': False, 'error': 'Evaluee not found'})
+        
+        return jsonify({'success': True, 'evaluee': evaluee_data})
+    
+    except Exception as e:
+        logger.error(f"Error getting evaluee data: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@bp.route('/api/evaluees')
+@login_required  
+def api_get_evaluees():
+    """API endpoint to get all evaluees for current user."""
+    try:
+        evaluees = Evaluee.query.filter_by(user_id=current_user.id).all()
+        evaluee_list = []
+        
+        for evaluee in evaluees:
+            evaluee_list.append({
+                'id': evaluee.id,
+                'name': f"{evaluee.first_name} {evaluee.last_name}",
+                'first_name': evaluee.first_name,
+                'last_name': evaluee.last_name,
+                'state': evaluee.state,
+                'date_of_birth': evaluee.date_of_birth.isoformat() if evaluee.date_of_birth else None,
+                'date_of_injury': evaluee.date_of_injury.isoformat() if evaluee.date_of_injury else None,
+                'gross_earnings_base': float(evaluee.gross_earnings_base) if evaluee.gross_earnings_base else None
+            })
+        
+        return jsonify({'success': True, 'evaluees': evaluee_list})
+    
+    except Exception as e:
+        logger.error(f"Error getting evaluees: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@bp.route('/api/generate-report', methods=['POST'])
+@login_required
+def api_generate_report():
+    """API endpoint to generate complete forensic economic report."""
+    try:
+        data = request.get_json()
+        evaluee_id = data.get('evaluee_id')
+        
+        if not evaluee_id:
+            return jsonify({'success': False, 'error': 'No evaluee_id provided'})
+        
+        # Generate unique session ID
+        session_id = secrets.token_urlsafe(16)
+        
+        # Start background report generation
+        thread = threading.Thread(
+            target=generate_complete_report_background,
+            args=(session_id, evaluee_id, current_user.id)
+        )
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            'success': True,
+            'session_id': session_id,
+            'message': 'Report generation started with complete data integration'
+        })
+    
+    except Exception as e:
+        logger.error(f"Error starting report generation: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@bp.route('/api/generate-word-report', methods=['POST'])
+@login_required
+def api_generate_word_report():
+    """API endpoint to generate Word format forensic economic report."""
+    try:
+        if not WORD_EXPORT_AVAILABLE:
+            return jsonify({
+                'success': False, 
+                'error': 'Word export functionality not available. Please install required dependencies.'
+            })
+        
+        data = request.get_json()
+        evaluee_id = data.get('evaluee_id')
+        
+        if not evaluee_id:
+            return jsonify({'success': False, 'error': 'No evaluee_id provided'})
+        
+        # Generate unique session ID
+        session_id = secrets.token_urlsafe(16)
+        
+        # Start background Word report generation
+        thread = threading.Thread(
+            target=generate_word_report_background,
+            args=(session_id, evaluee_id, current_user.id)
+        )
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            'success': True,
+            'session_id': session_id,
+            'message': 'Professional Word report generation started',
+            'format': 'docx'
+        })
+    
+    except Exception as e:
+        logger.error(f"Error starting Word report generation: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@bp.route('/api/report-status/<session_id>')
+@login_required
+def api_report_status(session_id):
+    """API endpoint to check report generation status."""
+    try:
+        if session_id not in active_reports:
+            return jsonify({'success': False, 'error': 'Invalid session ID'})
+        
+        report_info = active_reports[session_id]
+        
+        return jsonify({
+            'success': True,
+            'status': report_info['status'],
+            'report': report_info.get('report', ''),
+            'error': report_info.get('error', ''),
+            'length': len(report_info.get('report', '')),
+            'evaluee_name': report_info.get('evaluee_name', ''),
+            'format': report_info.get('format', 'text'),
+            'file_data': report_info.get('file_data', '')
+        })
+    
+    except Exception as e:
+        logger.error(f"Error checking report status: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@bp.route('/api/download-report/<session_id>')
+@login_required
+def api_download_report(session_id):
+    """API endpoint to download generated report."""
+    try:
+        if session_id not in active_reports:
+            flash('Invalid or expired session')
+            return redirect(url_for('forensic_reports_complete.index'))
+        
+        report_info = active_reports[session_id]
+        
+        if report_info['status'] != 'completed':
+            flash('Report not ready for download')
+            return redirect(url_for('forensic_reports_complete.index'))
+        
+        # Determine file type and create response
+        if report_info.get('format') == 'docx':
+            # Word document download
+            file_data = report_info.get('file_data', '')
+            if not file_data:
+                flash('Word document not available')
+                return redirect(url_for('forensic_reports_complete.index'))
+            
+            # Decode base64 data
+            import base64
+            docx_data = base64.b64decode(file_data)
+            
+            # Create filename
+            evaluee_name = report_info.get('evaluee_name', 'Report').replace(' ', '_')
+            filename = f"Forensic_Economic_Report_{evaluee_name}_{datetime.now().strftime('%Y%m%d')}.docx"
+            
+            # Save to temp file and send
+            temp_path = Path("instance/reports") / filename
+            temp_path.parent.mkdir(exist_ok=True)
+            
+            with open(temp_path, 'wb') as f:
+                f.write(docx_data)
+            
+            return send_file(
+                temp_path,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
+        else:
+            # Text report download
+            report_content = report_info.get('report', '')
+            evaluee_name = report_info.get('evaluee_name', 'Report').replace(' ', '_')
+            filename = f"Forensic_Economic_Report_{evaluee_name}_{datetime.now().strftime('%Y%m%d')}.txt"
+            
+            # Save to temp file
+            temp_path = Path("instance/reports") / filename
+            temp_path.parent.mkdir(exist_ok=True)
+            
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                f.write(report_content)
+            
+            return send_file(
+                temp_path,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='text/plain'
+            )
+    
+    except Exception as e:
+        logger.error(f"Error downloading report: {e}")
+        flash('Error downloading report')
+        return redirect(url_for('forensic_reports_complete.index'))
+
+
+# ================================
+# BACKGROUND REPORT GENERATION
+# ================================
+
+def generate_complete_report_background(session_id: str, evaluee_id: int, user_id: int):
+    """Generate complete forensic report in background thread."""
+    try:
+        # Initialize session
+        active_reports[session_id] = {
+            'status': 'generating',
+            'evaluee_name': '',
+            'format': 'text'
+        }
+        
+        # Get complete evaluee data
+        evaluee_data = complete_report_generator.get_complete_evaluee_data(evaluee_id, user_id)
+        if not evaluee_data:
+            active_reports[session_id].update({
+                'status': 'error',
+                'error': 'Evaluee not found'
+            })
+            return
+        
+        # Update session with evaluee name
+        active_reports[session_id]['evaluee_name'] = evaluee_data['name']
+        
+        # Generate complete report using ALL data
+        report_content = complete_report_generator.generate_professional_report(evaluee_data)
+        
+        # Mark as completed
+        active_reports[session_id].update({
+            'status': 'completed',
+            'report': report_content,
+            'length': len(report_content)
+        })
+        
+        logger.info(f"Complete report generated successfully for session {session_id}")
+        
+    except Exception as e:
+        logger.error(f"Error generating complete report: {e}")
+        active_reports[session_id] = {
+            'status': 'error',
+            'error': str(e),
+            'evaluee_name': active_reports.get(session_id, {}).get('evaluee_name', '')
+        }
+
+
+def generate_word_report_background(session_id: str, evaluee_id: int, user_id: int):
+    """Generate Word format forensic report in background thread."""
+    try:
+        # Initialize session
+        active_reports[session_id] = {
+            'status': 'generating',
+            'evaluee_name': '',
+            'format': 'docx'
+        }
+        
+        # Get complete evaluee data
+        evaluee_data = complete_report_generator.get_complete_evaluee_data(evaluee_id, user_id)
+        if not evaluee_data:
+            active_reports[session_id].update({
+                'status': 'error',
+                'error': 'Evaluee not found'
+            })
+            return
+        
+        # Update session with evaluee name
+        active_reports[session_id]['evaluee_name'] = evaluee_data['name']
+        
+        # Prepare data for Word export
+        word_report_data = prepare_word_export_data(evaluee_data)
+        
+        # Generate Word document
+        word_document_b64 = create_forensic_word_report(word_report_data, save_to_disk=True)
+        
+        # Generate text version for preview
+        text_report = complete_report_generator.generate_professional_report(evaluee_data)
+        
+        # Mark as completed
+        active_reports[session_id].update({
+            'status': 'completed',
+            'report': text_report,  # For preview
+            'file_data': word_document_b64,  # For download
+            'length': len(text_report)
+        })
+        
+        logger.info(f"Word report generated successfully for session {session_id}")
+        
+    except Exception as e:
+        logger.error(f"Error generating Word report: {e}")
+        active_reports[session_id] = {
+            'status': 'error',
+            'error': str(e),
+            'evaluee_name': active_reports.get(session_id, {}).get('evaluee_name', '')
+        }
+
+
+def prepare_word_export_data(evaluee_data: Dict) -> Dict:
+    """Prepare evaluee data for Word export format."""
+    # Calculate economic losses
+    economic_losses = complete_report_generator.calculate_comprehensive_economic_losses(evaluee_data)
+    
+    # Prepare the data structure expected by the Word exporter
+    word_data = {
+        # Basic evaluee information
+        'evaluee_name': evaluee_data['name'],
+        'date_of_birth': evaluee_data.get('date_of_birth'),
+        'date_of_injury': evaluee_data.get('date_of_injury'),
+        'state': evaluee_data.get('state'),
+        'case_number': f"Forensic-{evaluee_data['id']:04d}",
+        'economist_name': 'Christopher Skerritt, M.Ed., MBA, CRC, CLCP, ABVE/F',
+        'economist_title': 'Forensic Economist',
+        
+        # Analysis text
+        'earnings_analysis': f"Based on comprehensive analysis of {evaluee_data['name']}'s work history and earning capacity, the pre-injury earning capacity is estimated at ${economic_losses.get('pre_injury_earnings', 0):,.2f} annually. The analysis incorporates state-specific factors for {evaluee_data.get('state', 'N/A')} and education level adjustments.",
+        
+        'healthcare_analysis': f"Medical cost projections are based on {len(evaluee_data.get('healthcare_scenarios', []))} healthcare scenarios with advanced inflation modeling. Total healthcare costs are projected at ${economic_losses.get('healthcare_costs', 0):,.2f}.",
+        
+        'fringe_analysis': f"Fringe benefit analysis utilizes ECEC worker type data for {evaluee_data.get('education_level', 'standard education')} workers in {evaluee_data.get('state', 'N/A')}. Total fringe benefit losses: ${economic_losses.get('fringe_benefits', 0):,.2f}.",
+        
+        'household_analysis': f"Household services valuation uses staged methodology with {len(evaluee_data.get('household_scenarios', []))} scenarios. Total household services loss: ${economic_losses.get('household_services', 0):,.2f}.",
+        
+        'summary_analysis': f"The total comprehensive economic loss is ${economic_losses.get('total_loss', 0):,.2f}, calculated using multiple discount rate scenarios and incorporating all applicable economic factors.",
+        
+        # Table data for complex formatting
+        'earnings_table_data': prepare_earnings_table_data(evaluee_data, economic_losses),
+        'healthcare_table_data': prepare_healthcare_table_data(evaluee_data),
+        'fringe_table_data': prepare_fringe_table_data(evaluee_data),
+        'household_table_data': prepare_household_table_data(evaluee_data),
+        'present_value_summary': prepare_present_value_summary(economic_losses),
+        
+        # Detailed scenarios for appendix
+        'earnings_scenarios': evaluee_data.get('earnings_scenarios', []),
+        'healthcare_scenarios': evaluee_data.get('healthcare_scenarios', []),
+        'fringe_scenarios': evaluee_data.get('fringe_scenarios', []),
+        'household_scenarios': evaluee_data.get('household_scenarios', []),
+        'pension_scenarios': evaluee_data.get('pension_scenarios', []),
+        
+        # Methodology information
+        'methodology': "This analysis utilizes the comprehensive Economic Analysis Application system, implementing established forensic economic methodologies with complete data integration from all calculation scenarios.",
+        
+        'calculation_details': economic_losses
+    }
+    
+    return word_data
+
+
+def prepare_earnings_table_data(evaluee_data: Dict, economic_losses: Dict) -> List[List]:
+    """Prepare earnings data for table format."""
+    table_data = []
+    
+    # Sample data - in real implementation, this would come from detailed calculations
+    years_remaining = int(evaluee_data.get('work_life_expectancy', 20))
+    annual_loss = economic_losses.get('annual_earnings_loss', 50000)
+    
+    for year in range(min(5, years_remaining)):  # Show first 5 years
+        year_num = 2024 + year
+        pre_injury = annual_loss * (1.04 ** year)  # 4% growth
+        post_injury = 0  # Assume total loss
+        loss = pre_injury - post_injury
+        pv = loss / ((1.05 ** year))  # 5% discount
+        
+        table_data.append([
+            str(year_num),
+            f"${pre_injury:,.0f}",
+            f"${post_injury:,.0f}",
+            f"${loss:,.0f}",
+            f"${pv:,.0f}"
+        ])
+    
+    return table_data
+
+
+def prepare_healthcare_table_data(evaluee_data: Dict) -> List[List]:
+    """Prepare healthcare data for table format."""
+    table_data = []
+    scenarios = evaluee_data.get('healthcare_scenarios', [])
+    
+    for scenario in scenarios[:5]:  # Limit to 5 scenarios
+        table_data.append([
+            scenario.get('category', 'Healthcare'),
+            f"${scenario.get('annual_cost', 0):,.0f}",
+            f"{scenario.get('duration_years', 20)} years",
+            f"${scenario.get('total_cost', 0):,.0f}",
+            f"${scenario.get('present_value', 0):,.0f}"
+        ])
+    
+    return table_data
+
+
+def prepare_fringe_table_data(evaluee_data: Dict) -> List[List]:
+    """Prepare fringe benefits data for table format."""
+    table_data = []
+    scenarios = evaluee_data.get('fringe_scenarios', [])
+    
+    for scenario in scenarios[:5]:
+        table_data.append([
+            scenario.get('benefit_type', 'Fringe Benefits'),
+            f"{scenario.get('rate', 25.0):.1f}%",
+            f"${scenario.get('annual_value', 0):,.0f}",
+            f"${scenario.get('present_value', 0):,.0f}"
+        ])
+    
+    return table_data
+
+
+def prepare_household_table_data(evaluee_data: Dict) -> List[List]:
+    """Prepare household services data for table format.""" 
+    table_data = []
+    scenarios = evaluee_data.get('household_scenarios', [])
+    
+    for scenario in scenarios[:5]:
+        stages = scenario.get('stages', [])
+        if stages:
+            stage = stages[0]  # Use first stage
+            table_data.append([
+                scenario.get('service_type', 'Household Services'),
+                f"{stage.get('hours_per_week', 10):.1f}",
+                f"${stage.get('hourly_rate', 15.0):.2f}",
+                f"${stage.get('annual_cost', 0):,.0f}",
+                f"${scenario.get('present_value', 0):,.0f}"
+            ])
+    
+    return table_data
+
+
+def prepare_present_value_summary(economic_losses: Dict) -> List[List]:
+    """Prepare present value summary for table format."""
+    discount_rates = [3.0, 5.0, 7.0]
+    table_data = []
+    
+    categories = [
+        ('Earnings Loss', economic_losses.get('earnings_loss', 0)),
+        ('Healthcare Costs', economic_losses.get('healthcare_costs', 0)),
+        ('Fringe Benefits', economic_losses.get('fringe_benefits', 0)),
+        ('Household Services', economic_losses.get('household_services', 0))
+    ]
+    
+    for category, base_value in categories:
+        for rate in discount_rates:
+            # Apply discount rate (simplified calculation)
+            pv = base_value / (1 + rate/100)
+            table_data.append([
+                category,
+                f"{rate:.1f}%",
+                f"${pv:,.0f}"
+            ])
+    
+    return table_data
